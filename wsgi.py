@@ -1,4 +1,4 @@
-from eq_bot import app, db
+from main import app, db
 
 if __name__ == "__main__":
     with app.app_context():
