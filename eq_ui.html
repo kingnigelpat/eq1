@@ -309,7 +309,6 @@
     </div>
 
     <script>
-        const API_BASE = "https://eq1.up.railway.app";
         const chatMessages = document.getElementById('chatMessages');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
@@ -369,7 +368,7 @@
                     userId = 'guest_' + Math.random().toString(36).substr(2, 9);
                     localStorage.setItem('eq_user_id', userId);
                 }
-                const res = await fetch(`${API_BASE}/chat`, {
+                const res = await fetch('/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
