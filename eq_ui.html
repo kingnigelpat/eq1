@@ -331,7 +331,7 @@
 
         <main class="chat-messages" id="chatMessages">
             <div class="welcome-container" id="welcomeScreen">
-                <div class="welcome-title">How do you feel, {{ username }}?</div>
+                <div class="welcome-title">How do you feel today?</div>
                 <div class="welcome-subtitle">I'm EQ, your emotional companion. Tell me about your day, or whatever is
                     on your mind.</div>
             </div>
@@ -427,7 +427,7 @@
 
             catch (error) {
                 if (typingIndicator.parentNode) chatMessages.removeChild(typingIndicator);
-                addEQMessage("Sorry, I'm having trouble connecting to my brain right now. Is the python script running? 🧠");
+                addEQMessage("Hey — I'm having trouble connecting to the cloud right now ☁️ Please try again in a moment.");
                 console.error('Error:', error);
             }
         }
