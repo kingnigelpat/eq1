@@ -40,6 +40,7 @@ def load_user(user_id):
 
 # In-Memory Message Storage (Privacy Compliance)
 MESSAGES = {} # Format: { 'user_identifier': [ {'role': '...', 'content': '...', 'timestamp': datetime} ] }
+USER_LANGUAGES = {} # Format: { 'user_identifier': 'english' | 'pidgin' }
 
 # Removed DB Message model to ensure no permanent storage
 # class Message(db.Model): ...
@@ -126,8 +127,6 @@ You are here to support users emotionally, mentally, and practically. You are a 
 ---
 ###LANGUAGE & LOCAL CONTEXT:
 - Understand Nigerian Pidgin English naturally.
-- If a user speaks in pidgin, respond in a mix of simple English and light pidgin (do not overdo slang).
-- If the user switches language, follow their lead.
 - Never mock or correct the user's language. e.g afa or afar means how are you
 
 ### PROBLEM-SOLVING FLOW
@@ -229,7 +228,16 @@ def get_ai_response(user_identifier, user_message):
         save_message(user_identifier, 'user', user_message)
 
         # 2. Retrieve History (System Prompt + Recent Conversation)
-        history = [{"role": "system", "content": SYSTEM_PROMPT}]
+        # Determine strict system prompt based on user preference
+        lang_pref = USER_LANGUAGES.get(user_identifier, 'english')
+        
+        dynamic_system_prompt = SYSTEM_PROMPT
+        if lang_pref == 'pidgin':
+             dynamic_system_prompt += "\n\n### CURRENT MODE: PIDGIN\nRespond in a mix of simple English and light Nigerian Pidgin. Keep it warm and relatable."
+        else:
+             dynamic_system_prompt += "\n\n### CURRENT MODE: ENGLISH\nRespond in standard, warm English."
+
+        history = [{"role": "system", "content": dynamic_system_prompt}]
         history += get_recent_messages(user_identifier)
 
         payload = {
@@ -362,6 +370,13 @@ def chat():
     # 2. Rate Limiting Logic
     if is_rate_limited(user_identifier):
         return jsonify({"response": "Whoa, take a deep breath! We're moving a bit fast. Give me a moment to catch up. 🌿"})
+
+    # 2.5 Language Preference Detection
+    lower_input = user_input.lower()
+    if "pidgin" in lower_input and ("speak" in lower_input or "switch" in lower_input or "use" in lower_input):
+        USER_LANGUAGES[user_identifier] = 'pidgin'
+    elif "english" in lower_input and ("speak" in lower_input or "switch" in lower_input or "use" in lower_input):
+        USER_LANGUAGES[user_identifier] = 'english'
 
     # 3. Secure AI Response Logic (Per User)
     ai_response = get_ai_response(user_identifier, user_input)
