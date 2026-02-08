@@ -1,5 +1,7 @@
 import random
 import os
+from werkzeug.utils import secure_filename
+from pypdf import PdfReader
 from flask import Flask, request, jsonify, redirect, url_for, render_template_string
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -183,7 +185,26 @@ By the end of every conversation, the user should feel:
 ### FINAL NOTE
 You are **EQ**—a steady, warm presence when things feel heavy.
 **Act like someone who genuinely cares.**
+### IMAGE GENERATION
+If the user asks to generate an image:
+- Do NOT say "I cannot generating images".
+- Instead, generate a markdown image link using the following format:
+  `![Image description](https://image.pollinations.ai/prompt/Image%20description?width=1024&height=1024&nologo=true)`
+- Replace spaces in the description with `%20`.
+- Example: User asks for "a futuristic city", you output: `![Futuristic City](https://image.pollinations.ai/prompt/futuristic%20city?width=1024&height=1024&nologo=true)`
+
+### FILE GENERATION
+If the user asks you to create a file (e.g., "create a python script", "write a story in a text file"):
+- Provide the content in a code block.
+- Add a specific download indicator line AFTER the code block:
+  `[DOWNLOAD: filename.ext]`
+- This will allow the user's interface to offer a download button.
+
+### VOICE INTERACTION
+- The user may be speaking to you via voice. Keep responses concise and conversational if the input seems brief or spoken.
+
 """
+
 
 
 def get_recent_messages(user_identifier, limit=20):
@@ -321,6 +342,39 @@ def login():
     # Serve Login Page
     return open('login.html', encoding='utf-8').read()
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
+    if file:
+        filename = secure_filename(file.filename)
+        # Determine file type and extract text
+        content = ""
+        try:
+            if filename.lower().endswith('.pdf'):
+                reader = PdfReader(file)
+                for page in reader.pages:
+                    content += page.extract_text() + "\n"
+            else:
+                # Assume text-based
+                content = file.read().decode('utf-8', errors='ignore')
+            
+            # Limit content length to avoid token limits (approx 2000 chars for now)
+            # customized to be reasonable
+            preview = content[:2000] + ("..." if len(content) > 2000 else "")
+            
+            return jsonify({
+                "filename": filename,
+                "content": preview,
+                "full_content": content # Send full content, client can decide how to use
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -402,4 +456,4 @@ with app.app_context():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)
