@@ -8,7 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
 # Config
@@ -232,7 +232,7 @@ def save_message(user_identifier, role, content):
     MESSAGES[user_identifier].append({
         "role": role,
         "content": content,
-        "timestamp": datetime.now(datetime.timezone.utc)
+        "timestamp": datetime.now(timezone.utc)
     })
 
 def is_rate_limited(user_identifier, limit=10, period_seconds=60):
@@ -240,7 +240,7 @@ def is_rate_limited(user_identifier, limit=10, period_seconds=60):
     if user_identifier not in MESSAGES:
         return False
         
-    cutoff = datetime.now(datetime.timezone.utc) - timedelta(seconds=period_seconds)
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=period_seconds)
     
     # Filter for user messages after cutoff
     recent_count = sum(1 for m in MESSAGES[user_identifier] 
@@ -329,7 +329,7 @@ DAILY_LIMITS = {
 }
 
 def get_today_str():
-    return datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d')
+    return datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
 def check_quota(user_identifier, quota_type):
     if not user_identifier: return True # If we can't identify, we let it slide (or block, depending on policy)
