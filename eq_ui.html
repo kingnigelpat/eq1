@@ -820,7 +820,13 @@
 
         window.activateVoiceOnMobile = function () {
             if (!isVoiceCallActive) return;
-            if (voiceStatus.innerText.includes("Tap")) {
+
+            const status = voiceStatus.innerText;
+            // Allow activation unless we are actively doing something else
+            if (status !== "Listening..." && status !== "Thinking..." && !status.includes("Speaking")) {
+                // Force reset to ensure we can start fresh
+                try { recognition.stop(); } catch (e) { }
+                window.speechSynthesis.cancel();
                 startListening();
             }
         };
