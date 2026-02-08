@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EQ - Your Emotional Companion</title>
     <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
@@ -134,6 +135,7 @@
             font-size: clamp(1.6rem, 8vw, 2.4rem);
             font-weight: 300;
             background: linear-gradient(135deg, #FFD700, #D4AF37, #AA8C2C);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 12px;
@@ -515,28 +517,55 @@
 
         // --- Voice Chat (Web Speech API) ---
         let recognition;
+        let isVoiceMode = false;
+
+        function speak(text) {
+            if (!window.speechSynthesis) return;
+            window.speechSynthesis.cancel(); // Stop any previous speech
+
+            // Cleanup text (remove markdown symbols)
+            const textToSpeak = text.replace(/[*#`_]/g, '')
+                .replace(/!\[.*?\]\(.*?\)/g, ' I have generated an image for you. ')
+                .replace(/\[DOWNLOAD:.*?\]/g, ' File is ready for download. ');
+
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+
+            // Try to select a smooth female voice if available (e.g., Google US English)
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => v.name.includes('Google US English')) || voices.find(v => v.lang === 'en-US');
+            if (preferredVoice) utterance.voice = preferredVoice;
+
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
+            recognition.continuous = true; // Keep listening
+            recognition.interimResults = true; // Show results in real-time
             recognition.lang = 'en-US';
 
             recognition.onstart = () => {
                 micBtn.classList.add('recording');
-                userInput.placeholder = "Listening...";
+                userInput.placeholder = "Listening... (Click mic to stop)";
+                isVoiceMode = true;
             };
 
             recognition.onend = () => {
                 micBtn.classList.remove('recording');
                 userInput.placeholder = "Message EQ...";
+                // Don't auto-send, let user review or speak more? 
+                // User requirement: "doesnt even listen for long" -> continuous fixes this.
             };
 
             recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
+                let transcript = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
                 userInput.value = transcript;
-                // Optional: Auto-send
-                // handleSend();
             };
 
             micBtn.addEventListener('click', () => {
@@ -544,6 +573,7 @@
                     recognition.stop();
                 } else {
                     recognition.start();
+                    userInput.value = ''; // Clear previous input on new voice session
                 }
             });
         } else {
@@ -570,37 +600,81 @@
             html = html.replace(/```([\s\S]*?)```/g, '<pre>$1</pre>');
 
             // 4. Download Link: [DOWNLOAD: filename]
-            // We turn this into a button that downloads the preceding code context? 
-            // Or simpler: just a download link if we can't easily grab context.
-            // Let's make it a clickable dummy link or button
+            // We turn this into a button that downloads the preceding code context
             html = html.replace(/\[DOWNLOAD:\s*([^\]]+)\]/g, (match, filename) => {
-                return `<button onclick="downloadLastCodeBlock('${filename.trim()}')" style="margin-top:8px;padding:6px 12px;background:var(--primary);border:none;border-radius:4px;cursor:pointer;">Download ${filename.trim()}</button>`;
+                return `<button onclick="downloadCode(this, '${filename.trim()}')" style="margin-top:8px;padding:6px 12px;background:var(--primary);border:none;border-radius:4px;cursor:pointer;color:#000;font-weight:500;">Download ${filename.trim()}</button>`;
             });
 
             return html;
         }
 
         // Helper to download the content of the last code block found in the message DIV
-        // This is a bit hacky but works for the "Create file" flow.
-        window.downloadLastCodeBlock = function (filename) {
-            // Find the pre block immediately preceding this button's parent or similar
-            // Since we don't have easy DOM traversal from the string, we'll traverse in the click handler.
-            // Actually, identifying the right code block is hard from a global function.
-            // Better behavior: The user copies the code. The button is just sugar.
-            // Let's implement a simple "find closest pre" logic if possible, or just download placeholder.
+        window.downloadCode = function (btn, filename) {
+            const messageDiv = btn.closest('.message');
+            // Try to find the pre tag associated with this download
+            let pre = null;
 
-            // Find all pre elements
-            const pres = document.querySelectorAll('.eq-message pre');
+            // Grab the last pre in this message container
+            const pres = messageDiv.querySelectorAll('pre');
             if (pres.length > 0) {
-                const code = pres[pres.length - 1].textContent;
-                const blob = new Blob([code], { type: 'text/plain' });
+                pre = pres[pres.length - 1];
+            }
+
+            if (!pre) {
+                alert("Could not find content to download.");
+                return;
+            }
+
+            const content = pre.textContent;
+
+            if (filename.toLowerCase().endsWith('.pdf')) {
+                // Generate PDF using jsPDF
+                if (!window.jspdf) {
+                    alert("PDF generation component is loading... please try again in a moment.");
+                    return;
+                }
+
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+
+                    // Add text with wrapping
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const margin = 15;
+                    const maxLineWidth = pageWidth - (margin * 2);
+                    const lineHeight = 7;
+                    const pageHeight = doc.internal.pageSize.getHeight();
+
+                    // Split text to fit width
+                    const splitText = doc.splitTextToSize(content, maxLineWidth);
+
+                    let cursorY = 20;
+
+                    // Add Title-like header if appropriate, or just content
+                    // Iterate and add pages as needed
+                    for (let i = 0; i < splitText.length; i++) {
+                        if (cursorY + lineHeight > pageHeight - margin) {
+                            doc.addPage();
+                            cursorY = 20;
+                        }
+                        doc.text(splitText[i], margin, cursorY);
+                        cursorY += lineHeight;
+                    }
+
+                    doc.save(filename);
+                } catch (e) {
+                    console.error("PDF Error:", e);
+                    alert("Error generating PDF: " + e.message);
+                }
+            } else {
+                // Regular text download
+                const blob = new Blob([content], { type: 'text/plain' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = filename;
                 a.click();
-            } else {
-                alert("Could not find code to download.");
+                setTimeout(() => window.URL.revokeObjectURL(url), 100);
             }
         };
 
@@ -670,12 +744,13 @@
                 if (typingIndicator.parentNode) chatMessages.removeChild(typingIndicator);
                 addEQMessage(data.response);
 
-                // Text-to-Speech (Simple)
-                // Only if response is short or user used voice? 
-                // Let's not force it unless requested, as it can be annoying.
-                // But the user asked for voice chat. 
-                // I'll add a check: if the previous input was from voice (we can track this), speak the response.
-                // For now, I'll leave TTS manual or implied. "Allow users to use voice chat" usually means Input.
+                // Speak response if voice mode was active
+                if (isVoiceMode) {
+                    speak(data.response);
+                    // Reset voice mode if you want? Or keep it sticky?
+                    // Usually sticky is better for a conversation.
+                }
+
             } catch (error) {
                 if (typingIndicator.parentNode) chatMessages.removeChild(typingIndicator);
                 addEQMessage("Hey — I'm having trouble connecting to the cloud right now ☁️ Please try again in a moment.");
@@ -695,9 +770,16 @@
             }
         }
 
-        sendButton.addEventListener('click', handleSend);
+        sendButton.addEventListener('click', () => {
+            // If we send via button, we assume standard flow.
+            // But if they were just speaking, isVoiceMode is true.
+            handleSend();
+        });
         userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleSend();
+            if (e.key === 'Enter') {
+                isVoiceMode = false; // Reset voice mode if they start typing manually
+                handleSend();
+            }
         });
 
         userInput.focus();
