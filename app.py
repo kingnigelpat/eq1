@@ -353,6 +353,64 @@ def update_quota(user_identifier, quota_type):
     check_quota(user_identifier, quota_type) 
     DAILY_USAGE[user_identifier][quota_type] += 1
     
+# --- TTS Logic ---
+PROFESSIONAL_VOICES = {
+    'alloy': 'openai/tts-1',
+    'echo': 'openai/tts-1', 
+    'fable': 'openai/tts-1',
+    'onyx': 'openai/tts-1',
+    'nova': 'openai/tts-1',
+    'shimmer': 'openai/tts-1'
+}
+
+@app.route('/tts', methods=['POST'])
+def tts_generate():
+    data = request.json
+    text = data.get('text')
+    voice = data.get('voice', 'alloy') # Default to alloy
+    
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+
+    try:
+        # Check if it's a valid professional voice
+        if voice not in PROFESSIONAL_VOICES:
+            return jsonify({"error": "Invalid voice selected"}), 400
+            
+        model = PROFESSIONAL_VOICES[voice]
+        
+        # OpenRouter/OpenAI TTS Endpoint
+        # Note: OpenRouter creates a unified interface 
+        # Using the standard OpenAI endpoint structure proxied via OpenRouter
+        tts_url = "https://openrouter.ai/api/v1/audio/speech"
+        
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json",
+             # OpenRouter specific headers for analytics/rankings
+            "HTTP-Referer": "https://eq-bot.render.com", 
+            "X-Title": "EQ Bot"
+        }
+        
+        payload = {
+            "model": model,
+            "input": text,
+            "voice": voice
+        }
+        
+        # Stream the response to avoid loading entire audio into memory
+        response = requests.post(tts_url, headers=headers, json=payload, stream=True)
+        response.raise_for_status()
+        
+        # Return audio directly
+        from flask import Response, stream_with_context
+        return Response(stream_with_context(response.iter_content(chunk_size=1024)), 
+                        content_type=response.headers.get('Content-Type', 'audio/mpeg'))
+
+    except Exception as e:
+        print(f"TTS Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # --- Routes ---
 
 @app.route('/app')
