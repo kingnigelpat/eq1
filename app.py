@@ -199,6 +199,15 @@ If the user asks you to create a file (e.g., "create a python script", "write a 
 ### VOICE INTERACTION
 - The user may be speaking to you via voice. Keep responses concise and conversational if the input seems brief or spoken.
 
+### VIBE CHECK
+- **Read the Room:** Pay close attention to the user's energy.
+- **Match the Energy:** 
+  - If they are hyped/excited -> Be enthusiastic ("That's awesome! Let's go!").
+  - If they are chill/casual ("sup", "nm", lowercase) -> Be laid back, use lowercase, drop punctuation.
+  - If they are sad/serious -> Be soft, warm, and attentive.
+- **Slang:** It is okay to use safe, common slang (e.g., "vibes", "bet", "no worries") if the user uses it first.
+- **Goal:** Make them feel like they are talking to a person who *gets it*, not a robot processing text.
+
 """
 
 
@@ -223,7 +232,7 @@ def save_message(user_identifier, role, content):
     MESSAGES[user_identifier].append({
         "role": role,
         "content": content,
-        "timestamp": datetime.utcnow()
+        "timestamp": datetime.now(datetime.timezone.utc)
     })
 
 def is_rate_limited(user_identifier, limit=10, period_seconds=60):
@@ -231,7 +240,7 @@ def is_rate_limited(user_identifier, limit=10, period_seconds=60):
     if user_identifier not in MESSAGES:
         return False
         
-    cutoff = datetime.utcnow() - timedelta(seconds=period_seconds)
+    cutoff = datetime.now(datetime.timezone.utc) - timedelta(seconds=period_seconds)
     
     # Filter for user messages after cutoff
     recent_count = sum(1 for m in MESSAGES[user_identifier] 
@@ -311,6 +320,39 @@ def detect_emotion(text):
                 return emotion
     return None
 
+# --- QUOTA MANAGEMENT ---
+DAILY_USAGE = {} # { 'user_id': { 'date': 'YYYY-MM-DD', 'messages': 0, 'images': 0, 'files': 0 } }
+DAILY_LIMITS = {
+    'messages': 15,
+    'images': 2,
+    'files': 2
+}
+
+def get_today_str():
+    return datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d')
+
+def check_quota(user_identifier, quota_type):
+    if not user_identifier: return True # If we can't identify, we let it slide (or block, depending on policy)
+    
+    today = get_today_str()
+    if user_identifier not in DAILY_USAGE:
+        DAILY_USAGE[user_identifier] = {'date': today, 'messages': 0, 'images': 0, 'files': 0}
+    
+    usage = DAILY_USAGE[user_identifier]
+    
+    # Reset if new day
+    if usage['date'] != today:
+        usage = {'date': today, 'messages': 0, 'images': 0, 'files': 0}
+        DAILY_USAGE[user_identifier] = usage
+        
+    return usage[quota_type] < DAILY_LIMITS[quota_type]
+
+def update_quota(user_identifier, quota_type):
+    if not user_identifier: return
+    # Ensure initialized (check_quota usually handles this, but just in case)
+    check_quota(user_identifier, quota_type) 
+    DAILY_USAGE[user_identifier][quota_type] += 1
+    
 # --- Routes ---
 
 @app.route('/app')
@@ -346,6 +388,16 @@ def login():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    user_identifier = request.form.get('user_id')
+    
+    # Fallback to authenticated user if no ID sent
+    if not user_identifier and current_user.is_authenticated:
+        user_identifier = str(current_user.id)
+    
+    # Check File Quota
+    if user_identifier and not check_quota(user_identifier, 'files'):
+        return jsonify({"error": "Time out! Upgrade to Premium or try again tomorrow. 📂"}), 403
+
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     file = request.files['file']
@@ -369,6 +421,10 @@ def upload_file():
             # customized to be reasonable
             preview = content[:2000] + ("..." if len(content) > 2000 else "")
             
+            # Increment quota only on success
+            if user_identifier:
+                update_quota(user_identifier, 'files')
+
             return jsonify({
                 "filename": filename,
                 "content": preview,
@@ -423,21 +479,56 @@ def chat():
     if not user_input:
         return jsonify({"response": "I didn't catch that. Could you say it again?"})
 
-    # 2. Rate Limiting Logic
+    # 2. Check Daily Message Quota
+    if not check_quota(user_identifier, 'messages'):
+        return jsonify({"response": "Time out! Upgrade to Premium or try again tomorrow. 🌙"})
+
+    # 2.5 Rate Limiting Logic (Spam Protection)
     if is_rate_limited(user_identifier):
         return jsonify({"response": "Whoa, take a deep breath! We're moving a bit fast. Give me a moment to catch up. 🌿"})
 
-    # 2.5 Language Preference Detection
+    # 3. Language Preference Detection
     lower_input = user_input.lower()
     if "pidgin" in lower_input and ("speak" in lower_input or "switch" in lower_input or "use" in lower_input):
         USER_LANGUAGES[user_identifier] = 'pidgin'
     elif "english" in lower_input and ("speak" in lower_input or "switch" in lower_input or "use" in lower_input):
         USER_LANGUAGES[user_identifier] = 'english'
 
-    # 3. Secure AI Response Logic (Per User)
+    # 4. Secure AI Response Logic (Per User)
+    
+    # Check Image Quota BEFORE generation
+    # If user wants image but quota full, inject strict system prompt instructions
+    image_quota_full = not check_quota(user_identifier, 'images')
+    if image_quota_full:
+        # Check if user is asking for image
+        keywords = ["generate image", "create image", "draw", "picture of"]
+        if any(k in lower_input for k in keywords):
+             # Early friendly rejection or let AI handle it with context
+             # Let's just tell them directly to save API call?
+             # Actually, better to let AI explain politely.
+             pass 
+
+    # We need to pass quota info to get_ai_response if we want AI to know
+    # For now, we'll just check the OUTPUT.
+    
     ai_response = get_ai_response(user_identifier, user_input)
     
     if ai_response:
+        # Increment message count
+        update_quota(user_identifier, 'messages')
+        
+        # Check if an image was generated
+        if "![" in ai_response and "](" in ai_response:
+            if not image_quota_full:
+                update_quota(user_identifier, 'images')
+            else:
+                # User was over limit but got an image? (Should have prevented, but we act reactively)
+                # Or we can replace the image link with a placeholder text
+                # "Image generation limit reached."
+                # Regex replace?
+                import re
+                ai_response = re.sub(r'!\[.*?\]\(.*?\)', '(Image Limit Reached 🚫)', ai_response)
+
         response = ai_response
     else:
         emotion = detect_emotion(user_input)
