@@ -394,6 +394,112 @@
                 padding-left: 8px;
             }
         }
+
+        /* Voice Mode Overlay */
+        .voice-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            transition: opacity 0.3s ease;
+        }
+
+        .voice-overlay.active {
+            display: flex;
+        }
+
+        .voice-status {
+            font-size: 1.5rem;
+            margin-bottom: 40px;
+            font-weight: 300;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .voice-visualizer {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
+            animation: pulse-gold 2s infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 60px;
+        }
+
+        .voice-visualizer svg {
+            width: 40px;
+            height: 40px;
+            fill: #000;
+        }
+
+        .voice-visualizer.speaking {
+            animation: pulse-speaking 1s infinite;
+            background: #fff;
+        }
+
+        .close-voice-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 30px;
+            border-radius: 30px;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .close-voice-btn:hover {
+            border-color: #ff4444;
+            color: #ff4444;
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        @keyframes pulse-gold {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 20px rgba(212, 175, 55, 0);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
+            }
+        }
+
+        @keyframes pulse-speaking {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+            }
+
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 30px rgba(255, 255, 255, 0);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+            }
+        }
     </style>
 </head>
 
@@ -401,8 +507,45 @@
     <div class="chat-container">
         <header class="chat-header">
             <div class="logo-text">EQ</div>
-            <a href="/logout" class="logout-link">Logout</a>
+            <div style="display:flex;gap:15px;align-items:center;">
+                <button id="voiceCallBtn" class="action-button" title="Start Voice Call" style="color:var(--primary)">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.28 1.12.27 2.33.41 3.57.41.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.14 2.45.41 3.57.08.35-.01.74-.28 1.02l-2.2 2.2z" />
+                    </svg>
+                </button>
+                <a href="/logout" class="logout-link">Logout</a>
+            </div>
         </header>
+
+        <!-- Voice Overlay -->
+        <div class="voice-overlay" id="voiceOverlay">
+            <div class="voice-status" id="voiceStatus">Listening...</div>
+
+            <div class="voice-visualizer" id="voiceVisualizer">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                </svg>
+            </div>
+
+            <!-- Live Transcript -->
+            <div id="voiceTranscript"
+                style="margin: 0 20px 30px; text-align: center; max-width: 600px; min-height: 24px; color: rgba(255,255,255,0.8); font-size: 1.1rem; line-height: 1.4;">
+            </div>
+
+            <!-- Manual Control Buttons -->
+            <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 30px;">
+                <button id="voiceSendBtn" class="action-button"
+                    style="background:var(--primary); width: 64px; height: 64px; color: #000;"
+                    title="I'm Done Speaking">
+                    <svg viewBox="0 0 24 24" style="width: 32px; height: 32px;">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <button class="close-voice-btn" onclick="endVoiceCall()">End Call</button>
+        </div>
 
         <main class="chat-messages" id="chatMessages">
             <div class="welcome-container" id="welcomeScreen">
@@ -518,66 +661,184 @@
         // --- Voice Chat (Web Speech API) ---
         let recognition;
         let isVoiceMode = false;
+        let isVoiceCallActive = false;
+        let voiceCallUtterance = null; // Store current speech to cancel if needed
 
-        function speak(text) {
+        const voiceCallBtn = document.getElementById('voiceCallBtn');
+        const voiceOverlay = document.getElementById('voiceOverlay');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const voiceVisualizer = document.getElementById('voiceVisualizer');
+        const voiceTranscript = document.getElementById('voiceTranscript');
+        const voiceSendBtn = document.getElementById('voiceSendBtn');
+
+        function speak(text, onEndCallback) {
             if (!window.speechSynthesis) return;
-            window.speechSynthesis.cancel(); // Stop any previous speech
+            window.speechSynthesis.cancel();
 
-            // Cleanup text (remove markdown symbols)
+            // Cleanup text
             const textToSpeak = text.replace(/[*#`_]/g, '')
-                .replace(/!\[.*?\]\(.*?\)/g, ' I have generated an image for you. ')
-                .replace(/\[DOWNLOAD:.*?\]/g, ' File is ready for download. ');
+                .replace(/!\[.*?\]\(.*?\)/g, ' I have generated an image. ')
+                .replace(/\[DOWNLOAD:.*?\]/g, ' File ready. ');
 
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            voiceCallUtterance = utterance;
 
-            // Try to select a smooth female voice if available (e.g., Google US English)
             const voices = window.speechSynthesis.getVoices();
             const preferredVoice = voices.find(v => v.name.includes('Google US English')) || voices.find(v => v.lang === 'en-US');
             if (preferredVoice) utterance.voice = preferredVoice;
 
             utterance.rate = 1.0;
-            utterance.pitch = 1.0;
+
+            utterance.onstart = () => {
+                if (isVoiceCallActive) {
+                    voiceStatus.innerText = "EQ Speaking...";
+                    voiceVisualizer.classList.add('speaking');
+                    voiceTranscript.innerText = ""; // Clear user text while AI speaks
+                    voiceSendBtn.style.display = 'none'; // Hide send button while AI speaks
+                }
+            };
+
+            utterance.onend = () => {
+                if (isVoiceCallActive) {
+                    voiceVisualizer.classList.remove('speaking');
+                    if (onEndCallback) onEndCallback();
+                }
+            };
+
             window.speechSynthesis.speak(utterance);
         }
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
-            recognition.continuous = true; // Keep listening
-            recognition.interimResults = true; // Show results in real-time
+            // Use continuous for BOTH modes now to avoid cutting off
+            recognition.continuous = true;
+            recognition.interimResults = true;
             recognition.lang = 'en-US';
 
             recognition.onstart = () => {
-                micBtn.classList.add('recording');
-                userInput.placeholder = "Listening... (Click mic to stop)";
-                isVoiceMode = true;
+                if (isVoiceCallActive) {
+                    voiceStatus.innerText = "Listening...";
+                    voiceTranscript.innerText = "";
+                    voiceSendBtn.style.display = 'flex'; // Show send button
+                    voiceSendBtn.style.opacity = '1';
+                } else {
+                    micBtn.classList.add('recording');
+                    userInput.placeholder = "Listening... (Click mic to stop)";
+                }
             };
 
             recognition.onend = () => {
+                // If in regular mode
                 micBtn.classList.remove('recording');
                 userInput.placeholder = "Message EQ...";
-                // Don't auto-send, let user review or speak more? 
-                // User requirement: "doesnt even listen for long" -> continuous fixes this.
+
+                // If in Call Mode, this usually triggers after silence.
+                // We should check if we got a result. If not, restart listening after a brief delay?
+                // Actually, if sending happens in onresult(final), we wait.
+                // If the engine stops without result (timeout), we restart.
+
+                if (isVoiceCallActive && !window.blockRestart) {
+                    // Restart listening if we didn't just send a message (which would trigger AI speaking)
+                    // Simple keep-alive:
+                    setTimeout(() => {
+                        if (isVoiceCallActive && !window.speechSynthesis.speaking) recognition.start();
+                    }, 300);
+                }
             };
 
             recognition.onresult = (event) => {
                 let transcript = '';
+                // let isFinal = false; // Removed
+
+                // for (let i = event.resultIndex; i < event.results.length; ++i) { // Modified
+                //     transcript += event.results[i][0].transcript;
+                //     if (event.results[i].isFinal) isFinal = true;
+                // }
+
+                // Accumulate full transcript from all results
+                let fullTranscript = '';
                 for (let i = 0; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
+                    fullTranscript += event.results[i][0].transcript;
                 }
-                userInput.value = transcript;
+
+                if (isVoiceCallActive) {
+                    // Visualization logic could go here (e.g. scale based on volume if supported, or just boolean)
+                    voiceTranscript.innerText = fullTranscript;
+                    userInput.value = fullTranscript; // Keep hidden input synced
+                } else {
+                    userInput.value = fullTranscript; // Use fullTranscript for regular mode too
+                }
+
+                // Removed auto-send logic. User must press button.
+                // if (isVoiceCallActive && isFinal && transcript.trim().length > 0) {
+                //     // Auto-send in call mode
+                //     window.blockRestart = true; // Block immediate restart in onend
+                //     userInput.value = transcript; // Sync text
+                //     recognition.stop();
+
+                //     voiceStatus.innerText = "Thinking...";
+                //     handleSend();
+                // }
             };
 
+            // Regular Mic Button
             micBtn.addEventListener('click', () => {
+                if (isVoiceCallActive) return; // Disable if in call
+                // Toggle regular dictation
+                // recognition.continuous = true; // Use continuous for dictation - already set globally
                 if (micBtn.classList.contains('recording')) {
                     recognition.stop();
                 } else {
                     recognition.start();
-                    userInput.value = ''; // Clear previous input on new voice session
+                    userInput.value = ''; // Clear buffer when starting
                 }
             });
+
+            // Voice Call Mode Logic
+            voiceCallBtn.addEventListener('click', startVoiceCall);
+
+            function startVoiceCall() {
+                isVoiceCallActive = true;
+                window.blockRestart = false;
+                voiceOverlay.classList.add('active');
+
+                // Stop any current standard recognition
+                recognition.abort();
+                // recognition.continuous = false; // Turn-taking mode - already set globally to true
+
+                // Initial greeting or just start listening
+                setTimeout(() => {
+                    userInput.value = ''; // Clear buffer
+                    recognition.start();
+                }, 500);
+            }
+
+            // Manual Send in Voice Mode
+            voiceSendBtn.addEventListener('click', () => {
+                if (!isVoiceCallActive) return;
+
+                const text = userInput.value.trim();
+                if (!text) return; // Don't send empty
+
+                window.blockRestart = true; // Stop listening while processing
+                recognition.stop();
+
+                voiceStatus.innerText = "Thinking...";
+                handleSend(); // Send the text
+            });
+
+            window.endVoiceCall = function () {
+                isVoiceCallActive = false;
+                window.blockRestart = true;
+                voiceOverlay.classList.remove('active');
+                recognition.abort();
+                window.speechSynthesis.cancel();
+            };
+
         } else {
-            micBtn.style.display = 'none'; // Not supported
+            micBtn.style.display = 'none';
+            voiceCallBtn.style.display = 'none';
         }
 
         // --- UI Logic ---
@@ -744,11 +1005,15 @@
                 if (typingIndicator.parentNode) chatMessages.removeChild(typingIndicator);
                 addEQMessage(data.response);
 
-                // Speak response if voice mode was active
-                if (isVoiceMode) {
-                    speak(data.response);
-                    // Reset voice mode if you want? Or keep it sticky?
-                    // Usually sticky is better for a conversation.
+                // Speak response if voice mode was active OR call mode is active
+                if (isVoiceMode || isVoiceCallActive) {
+                    speak(data.response, () => {
+                        // On finish speaking, if in call mode, start listening again
+                        if (isVoiceCallActive) {
+                            window.blockRestart = false;
+                            recognition.start();
+                        }
+                    });
                 }
 
             } catch (error) {
