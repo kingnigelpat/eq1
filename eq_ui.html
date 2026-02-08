@@ -846,12 +846,19 @@
             });
         }
 
+        // Force render immediately for Premium voices
+        populateVoiceList();
+
+        // Re-render when system voices become available (common on mobile)
         if (window.speechSynthesis) {
-            populateVoiceList();
             if (speechSynthesis.onvoiceschanged !== undefined) {
                 speechSynthesis.onvoiceschanged = populateVoiceList;
             }
         }
+
+        // Ensure it runs after full load (iOS Safari safety)
+        window.addEventListener('load', populateVoiceList);
+        document.addEventListener('DOMContentLoaded', populateVoiceList);
 
         voiceSelect.addEventListener('change', () => {
             const selectedOption = voiceSelect.selectedOptions[0];
