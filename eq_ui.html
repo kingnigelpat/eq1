@@ -664,6 +664,16 @@
         let isVoiceCallActive = false;
         let voiceCallUtterance = null; // Store current speech to cancel if needed
 
+        // Initialize voices on load (needed for Chrome/Safari)
+        let voices = [];
+        if (window.speechSynthesis) {
+            window.speechSynthesis.onvoiceschanged = () => {
+                voices = window.speechSynthesis.getVoices();
+                // Pre-select voice log or debug
+                // console.log("Voices loaded:", voices.length);
+            };
+        }
+
         const voiceCallBtn = document.getElementById('voiceCallBtn');
         const voiceOverlay = document.getElementById('voiceOverlay');
         const voiceStatus = document.getElementById('voiceStatus');
@@ -672,7 +682,11 @@
         const voiceSendBtn = document.getElementById('voiceSendBtn');
 
         function speak(text, onEndCallback) {
-            if (!window.speechSynthesis) return;
+            if (!window.speechSynthesis) {
+                console.error("Speech Synthesis not supported");
+                if (onEndCallback) onEndCallback();
+                return;
+            }
             window.speechSynthesis.cancel();
 
             // Cleanup text
@@ -683,24 +697,47 @@
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
             voiceCallUtterance = utterance;
 
-            const voices = window.speechSynthesis.getVoices();
-            const preferredVoice = voices.find(v => v.name.includes('Google US English')) || voices.find(v => v.lang === 'en-US');
+            // Voice Selection Logic (Improved for iOS)
+            if (voices.length === 0) voices = window.speechSynthesis.getVoices();
+
+            // Priority: Google US English -> iOS 'Samantha' -> iOS 'Daniel' -> Generic English
+            const preferredVoice = voices.find(v => v.name.includes('Google US English'))
+                || voices.find(v => v.name.includes('Samantha'))
+                || voices.find(v => v.name.includes('Daniel'))
+                || voices.find(v => v.lang === 'en-US');
+
             if (preferredVoice) utterance.voice = preferredVoice;
 
+            // Adjust rate/pitch slightly for more natural feel on iOS
             utterance.rate = 1.0;
+            if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
+                utterance.rate = 0.9; // iOS tends to be fast
+            }
 
             utterance.onstart = () => {
                 if (isVoiceCallActive) {
                     voiceStatus.innerText = "EQ Speaking...";
                     voiceVisualizer.classList.add('speaking');
-                    voiceTranscript.innerText = ""; // Clear user text while AI speaks
-                    voiceSendBtn.style.display = 'none'; // Hide send button while AI speaks
+                    voiceTranscript.innerText = "";
+                    voiceSendBtn.style.display = 'none';
                 }
             };
+
+            // Important: iOS Safari garbage collects utterances if not stored globally
+            // voiceCallUtterance is global, so we are good.
 
             utterance.onend = () => {
                 if (isVoiceCallActive) {
                     voiceVisualizer.classList.remove('speaking');
+                    if (onEndCallback) onEndCallback();
+                }
+            };
+
+            utterance.onerror = (e) => {
+                console.error("Speech Error:", e);
+                if (isVoiceCallActive) {
+                    voiceVisualizer.classList.remove('speaking');
+                    // Fallback: proceed anyway so we don't hang
                     if (onEndCallback) onEndCallback();
                 }
             };
