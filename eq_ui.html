@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>EQ - Your Emotional Companion</title>
     <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -50,12 +51,15 @@
             width: 100vw;
             height: 100vh;
             height: 100dvh;
+            /* Dynamic viewport height for mobile browsers */
             display: flex;
             flex-direction: column;
             background-color: var(--bg-black);
             max-width: 800px;
             border-left: 1px solid rgba(255, 255, 255, 0.05);
             border-right: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+            /* Context */
         }
 
         @media (max-width: 800px) {
@@ -67,12 +71,15 @@
 
         .chat-header {
             flex-shrink: 0;
-            height: var(--header-height);
+            height: auto;
+            min-height: var(--header-height);
             background-color: rgba(0, 0, 0, 0.9);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             color: var(--primary);
-            padding: 0 20px;
+            padding: 10px 20px;
+            padding-top: max(10px, env(safe-area-inset-top));
+            /* Handle Notch */
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -200,6 +207,8 @@
         .chat-input-area {
             flex-shrink: 0;
             padding: 15px;
+            padding-bottom: max(15px, env(safe-area-inset-bottom));
+            /* Handle Home Bar */
             background-color: var(--bg-black);
             border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
@@ -226,8 +235,9 @@
             border: none;
             color: white;
             outline: none;
-            font-size: 0.95rem;
-            padding: 10px 8px;
+            font-size: 16px;
+            /* Prevents zoom on iOS */
+            padding: 12px 8px;
         }
 
         .action-button {
