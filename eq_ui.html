@@ -7,858 +7,192 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>EQ - Your Emotional Companion</title>
     <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
+    <link rel="stylesheet" href="/static/eq_style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        }
-
-        :root {
-            --primary: #D4AF37;
-            --primary-glow: rgba(212, 175, 55, 0.1);
-            --bg-black: #000000;
-            --bg-dark: #111111;
-            --bg-accent: #1a1a1a;
-            --text-white: #ffffff;
-            --text-gray: #e0e0e0;
-            --text-muted: #666666;
-            --header-height: 60px;
-        }
-
-        html,
-        body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: var(--bg-black);
-            color: var(--text-white);
-        }
-
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .chat-container {
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
-            /* Dynamic viewport height for mobile browsers */
-            display: flex;
-            flex-direction: column;
-            background-color: var(--bg-black);
-            max-width: 800px;
-            border-left: 1px solid rgba(255, 255, 255, 0.05);
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
-            position: relative;
-            /* Context */
-        }
-
-        @media (max-width: 800px) {
-            .chat-container {
-                max-width: 100%;
-                border: none;
-            }
-        }
-
-        .chat-header {
-            flex-shrink: 0;
-            height: auto;
-            min-height: var(--header-height);
-            background-color: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            color: var(--primary);
-            padding: 10px 20px;
-            padding-top: max(10px, env(safe-area-inset-top));
-            /* Handle Notch */
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            z-index: 100;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .logo-text {
-            font-weight: 600;
-            letter-spacing: 1px;
-            font-size: 1.1rem;
-        }
-
-        .logout-link {
-            color: rgba(255, 255, 255, 0.5);
-            text-decoration: none;
-            font-size: 0.8rem;
-            transition: color 0.2s;
-        }
-
-        .logout-link:hover {
-            color: var(--primary);
-        }
-
-        .chat-messages {
-            flex: 1;
-            padding: 20px 15px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            scrollbar-width: thin;
-            scrollbar-color: var(--bg-accent) transparent;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .chat-messages::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: var(--bg-accent);
-            border-radius: 10px;
-        }
-
-        .welcome-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 40px 20px;
-            animation: fadeIn 0.6s ease-out;
-            height: 100%;
-        }
-
-        .welcome-title {
-            font-size: clamp(1.6rem, 8vw, 2.4rem);
-            font-weight: 300;
-            background: linear-gradient(135deg, #FFD700, #D4AF37, #AA8C2C);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 12px;
-        }
-
-        .welcome-subtitle {
-            color: var(--text-muted);
-            font-size: clamp(0.85rem, 4vw, 1rem);
-            max-width: 400px;
-            line-height: 1.5;
-        }
-
-        .message {
-            max-width: 85%;
-            padding: 10px 16px;
-            border-radius: 18px;
-            font-size: 0.95rem;
-            line-height: 1.4;
-            animation: slideUp 0.3s ease-out;
-            word-wrap: break-word;
-        }
-
-        .user-message {
-            background-color: var(--primary);
-            color: #000;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-            font-weight: 500;
-        }
-
-        .eq-message {
-            background-color: var(--bg-accent);
-            color: var(--text-gray);
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        /* Image Styling in Chat */
-        .eq-message img {
-            max-width: 100%;
-            border-radius: 8px;
-            margin-top: 8px;
-            display: block;
-        }
-
-        .eq-message code {
-            font-family: monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 2px 4px;
-            border-radius: 4px;
-        }
-
-        .message pre {
-            background: #000;
-            padding: 10px;
-            border-radius: 8px;
-            overflow-x: auto;
-            margin: 8px 0;
-        }
-
-        .chat-input-area {
-            flex-shrink: 0;
-            padding: 15px;
-            padding-bottom: max(15px, env(safe-area-inset-bottom));
-            /* Handle Home Bar */
-            background-color: var(--bg-black);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .input-wrapper {
-            width: 100%;
-            background-color: var(--bg-accent);
-            border-radius: 24px;
-            padding: 4px 4px 4px 12px;
-            display: flex;
-            align-items: center;
-            border: 1px solid #333;
-            transition: all 0.2s ease;
-        }
-
-        .input-wrapper:focus-within {
-            border-color: var(--primary);
-            box-shadow: 0 0 15px var(--primary-glow);
-        }
-
-        .chat-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: white;
-            outline: none;
-            font-size: 16px;
-            /* Prevents zoom on iOS */
-            padding: 12px 8px;
-        }
-
-        .action-button {
-            width: 38px;
-            height: 38px;
-            background: transparent;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            color: var(--text-muted);
-        }
-
-        .action-button:hover {
-            color: var(--primary);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .send-button {
-            width: 38px;
-            height: 38px;
-            background-color: var(--primary);
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            margin-left: 4px;
-            flex-shrink: 0;
-        }
-
-        .send-button:hover {
-            background-color: #FFD700;
-        }
-
-        .send-button svg {
-            width: 18px;
-            height: 18px;
-            fill: #000;
-        }
-
-        .action-button svg {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-        }
-
-        .recording {
-            color: #ff4444 !important;
-            animation: pulse-red 1.5s infinite;
-        }
-
-        @keyframes pulse-red {
-            0% {
-                box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4);
-            }
-
-            70% {
-                box-shadow: 0 0 0 6px rgba(255, 68, 68, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
-            }
-        }
-
-        .file-indicator {
-            display: none;
-            padding: 4px 12px;
-            background: rgba(212, 175, 55, 0.1);
-            border-radius: 12px;
-            color: var(--primary);
-            font-size: 0.75rem;
-            margin-bottom: 8px;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .file-indicator.active {
-            display: flex;
-        }
-
-        .typing-indicator {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 10px 16px;
-            background-color: var(--bg-accent);
-            border-radius: 18px;
-            border-bottom-left-radius: 4px;
-            align-self: flex-start;
-            margin-bottom: 8px;
-            flex-shrink: 0;
-        }
-
-        .typing-dot {
-            width: 5px;
-            height: 5px;
-            background-color: var(--primary);
-            border-radius: 50%;
-            animation: typing 1.4s infinite ease-in-out;
-            opacity: 0.5;
-        }
-
-        .typing-dot:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes typing {
-
-            0%,
-            60%,
-            100% {
-                transform: translateY(0);
-            }
-
-            30% {
-                transform: translateY(-4px);
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @media (max-width: 480px) {
-            .chat-inputs-row {
-                gap: 4px;
-            }
-
-            .message {
-                max-width: 90%;
-                font-size: 0.9rem;
-            }
-
-            .input-wrapper {
-                padding-left: 8px;
-            }
-        }
-
-        /* Voice Mode Overlay - Restored */
-        .voice-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            transition: opacity 0.3s ease;
-        }
-
-        .voice-overlay.active {
-            display: flex;
-        }
-
-        .voice-status {
-            font-size: 1.5rem;
-            margin-bottom: 40px;
-            font-weight: 300;
-            color: var(--primary);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .voice-visualizer {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: var(--primary);
-            box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
-            animation: pulse-gold 2s infinite;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 60px;
-        }
-
-        .voice-visualizer svg {
-            width: 40px;
-            height: 40px;
-            fill: #000;
-        }
-
-        .voice-visualizer.speaking {
-            animation: pulse-speaking 1s infinite;
-            background: #fff;
-        }
-
-        .close-voice-btn {
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 12px 30px;
-            border-radius: 30px;
-            color: rgba(255, 255, 255, 0.7);
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.9rem;
-        }
-
-        .close-voice-btn:hover {
-            border-color: #ff4444;
-            color: #ff4444;
-            background: rgba(255, 68, 68, 0.1);
-        }
-
-        @keyframes pulse-gold {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7);
-            }
-
-            70% {
-                transform: scale(1);
-                box-shadow: 0 0 0 20px rgba(212, 175, 55, 0);
-            }
-
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
-            }
-        }
-
-        @keyframes pulse-speaking {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
-            }
-
-            50% {
-                transform: scale(1.1);
-                box-shadow: 0 0 0 30px rgba(255, 255, 255, 0);
-            }
-
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
-            }
-        }
-
-        .voice-settings-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
-            padding: 8px;
-            border-radius: 50%;
-            cursor: pointer;
-            z-index: 1002;
-        }
-
-        .voice-settings-panel {
-            position: absolute;
-            top: 70px;
-            right: 20px;
-            background: rgba(20, 20, 20, 0.95);
-            border: 1px solid #333;
-            padding: 15px;
-            border-radius: 12px;
-            width: 280px;
-            display: none;
-            flex-direction: column;
-            gap: 12px;
-            z-index: 1002;
-        }
-
-        .voice-settings-panel.active {
-            display: flex;
-        }
-
-        .settings-row {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .settings-label {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        select,
-        input[type="range"] {
-            width: 100%;
-            background: #333;
-            color: white;
-            border: 1px solid #444;
-            padding: 5px;
-            border-radius: 4px;
-        }
-
-        .test-voice-btn {
-            background: var(--primary);
-            border: none;
-            padding: 5px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            font-weight: 500;
-        }
-    </style>
 </head>
 
 <body>
     <div class="chat-container">
         <header class="chat-header">
-            <div class="logo-text">EQ</div>
-            <div style="display:flex;gap:15px;align-items:center;">
-                <button id="voiceCallBtn" class="action-button" title="Start Voice Call" style="color:var(--primary)">
-                    <svg viewBox="0 0 24 24">
-                        <path
-                            d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.28 1.12.27 2.33.41 3.57.41.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.14 2.45.41 3.57.08.35-.01.74-.28 1.02l-2.2 2.2z" />
-                    </svg>
-                </button>
+            <span class="logo-text">EQ</span>
+            <div style="display:flex; gap:15px; align-items:center;">
                 <a href="/logout" class="logout-link">Logout</a>
             </div>
         </header>
 
-        <!-- Voice Overlay -->
-        <div class="voice-overlay" id="voiceOverlay">
-            <button class="voice-settings-btn" onclick="toggleVoiceSettings()" title="Voice Settings">
-                <svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:currentColor;">
-                    <path
-                        d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.49l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
-                </svg>
-            </button>
-
-            <div class="voice-settings-panel" id="voiceSettingsPanel">
-                <div class="settings-row">
-                    <label class="settings-label">Voice Selection</label>
-                    <select id="voiceSelect"></select>
-                </div>
-                <div class="settings-row">
-                    <label class="settings-label">Speed</label>
-                    <input type="range" id="rateRange" min="0.5" max="1.5" step="0.1" value="1.0">
-                </div>
-                <div class="settings-row">
-                    <label class="settings-label">Pitch</label>
-                    <input type="range" id="pitchRange" min="0.5" max="1.5" step="0.1" value="1.0">
-                </div>
-                <button class="test-voice-btn" onclick="testVoice()">Test Voice</button>
+        <div class="chat-messages" id="chat-messages">
+            <div class="welcome-container" id="welcomeScreen">
+                <div class="welcome-title">Hello, {{ username }}</div>
+                <div class="welcome-subtitle">I'm EQ. How are you feeling today?</div>
             </div>
-
-            <div class="voice-status" id="voiceStatus">Initializing...</div>
-            <div class="voice-visualizer" id="voiceVisualizer" onclick="activateVoiceOnMobile()"
-                style="cursor: pointer;">
-                <svg viewBox="0 0 24 24">
-                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-                </svg>
-            </div>
-
-            <div id="voiceTranscript"
-                style="margin: 0 20px 30px; text-align: center; max-width: 600px; min-height: 24px; color: rgba(255,255,255,0.8); font-size: 1.1rem; line-height: 1.4;">
-            </div>
-
-            <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 30px;">
-                <button id="voiceSendBtn" class="action-button"
-                    style="background:var(--primary); width: 64px; height: 64px; color: #000; display:none;"
-                    title="I'm Done Speaking">
-                    <svg viewBox="0 0 24 24" style="width: 32px; height: 32px;">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <button class="close-voice-btn" onclick="endVoiceCall()">End Call</button>
         </div>
 
-        <main class="chat-messages" id="chatMessages">
-            <div class="welcome-container" id="welcomeScreen">
-                <div class="welcome-title">How do you feel today?</div>
-                <div class="welcome-subtitle">I'm EQ, your emotional companion. Share your thoughts, upload a file, or
-                    create something new.</div>
-            </div>
-        </main>
+        <div class="file-indicator" id="fileIndicator">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                <polyline points="13 2 13 9 20 9"></polyline>
+            </svg>
+            <span id="fileName"></span>
+            <button onclick="clearFile()"
+                style="background:none;border:none;color:inherit;cursor:pointer;">&times;</button>
+        </div>
 
-        <section class="chat-input-area">
-            <div id="fileIndicator" class="file-indicator">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
-                </svg>
-                <span id="fileName">File attached</span>
-                <span style="cursor:pointer" onclick="clearFile()">×</span>
-            </div>
-
+        <div class="chat-input-area">
             <div class="input-wrapper">
-                <input type="file" id="fileInput" hidden>
-
                 <button class="action-button" id="uploadBtn" title="Upload File">
                     <svg viewBox="0 0 24 24">
                         <path
-                            d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                            d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                     </svg>
                 </button>
-                <button class="action-button" id="micBtn" title="Voice Chat">
+                <input type="file" id="fileInput" hidden accept=".txt,.pdf,.md,.py,.js,.html,.css,.json">
+
+                <input type="text" class="chat-input" id="userInput" placeholder="Type a message..." autocomplete="off">
+
+                <button class="action-button" id="micBtn" title="Voice Input">
                     <svg viewBox="0 0 24 24">
                         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
                         <path
-                            d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                            d="M17 11c0 3.01-2.44 5.5-5.5 5.5S6 14.01 6 11H4c0 3.53 2.61 6.43 6 6.92V21h4v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
                     </svg>
                 </button>
-
-                <input type="text" id="userInput" class="chat-input" placeholder="Message EQ..." autocomplete="off">
 
                 <button class="send-button" id="sendButton">
                     <svg viewBox="0 0 24 24">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                     </svg>
                 </button>
             </div>
-        </section>
+            <div style="text-align:center; margin-top:10px;">
+                <button class="action-button" id="voiceCallBtn"
+                    style="margin:0 auto; width:50px; height:50px; background:rgba(255,255,255,0.05);">
+                    <svg viewBox="0 0 24 24" style="width:24px; height:24px;">
+                        <path
+                            d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1zM12 3v10l3-3h6V3h-9z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice Overlay -->
+    <div class="voice-overlay" id="voiceOverlay">
+        <button class="voice-settings-btn" onclick="toggleVoiceSettings()">⚙️</button>
+
+        <div class="voice-settings-panel" id="voiceSettingsPanel">
+            <div class="settings-row">
+                <span class="settings-label">Voice</span>
+                <select id="voiceSelect"></select>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Speed: <span id="rateValue">1.0</span></span>
+                <input type="range" id="rateRange" min="0.5" max="2" step="0.1" value="1">
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Pitch: <span id="pitchValue">1.0</span></span>
+                <input type="range" id="pitchRange" min="0.5" max="2" step="0.1" value="1">
+            </div>
+            <button class="test-voice-btn" onclick="testVoice()">Test Voice</button>
+        </div>
+
+        <div class="voice-status" id="voiceStatus">Listening...</div>
+
+        <div class="voice-visualizer" id="voiceVisualizer" onclick="activateVoiceOnMobile()" style="cursor: pointer;">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+            </svg>
+            <div class="waveform-container">
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+            </div>
+        </div>
+
+        <div id="voiceTranscript"
+            style="max-width:80%; text-align:center; margin-bottom:30px; min-height:24px; color:rgba(255,255,255,0.7);">
+        </div>
+
+        <button class="action-button" id="voiceSendBtn"
+            style="width:60px; height:60px; background:var(--primary); margin-bottom:30px; display:none;">
+            <svg viewBox="0 0 24 24" style="width:30px; height:30px; fill:#000;">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
+        </button>
+
+        <button class="close-voice-btn" onclick="endVoiceCall()">End Call</button>
     </div>
 
     <script>
-        const chatMessages = document.getElementById('chatMessages');
-        const userInput = document.getElementById('userInput');
-        const sendButton = document.getElementById('sendButton');
-        const welcomeScreen = document.getElementById('welcomeScreen');
-        const fileInput = document.getElementById('fileInput');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const micBtn = document.getElementById('micBtn');
-        const fileIndicator = document.getElementById('fileIndicator');
-        const fileNameSpan = document.getElementById('fileName');
-
+        // --- Global State ---
         let currentFileContent = "";
         let currentFileName = "";
-
-        // --- File Upload ---
-        uploadBtn.addEventListener('click', () => fileInput.click());
-
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const userId = localStorage.getItem('eq_user_id');
-            if (userId) formData.append('user_id', userId);
-
-            try {
-                uploadBtn.style.opacity = '0.5';
-                const res = await fetch('/upload', { method: 'POST', body: formData });
-                const data = await res.json();
-
-                if (data.error) {
-                    alert('Upload failed: ' + data.error);
-                } else {
-                    if (data.full_content && data.full_content.length < 50000) {
-                        currentFileContent = data.full_content;
-                    } else {
-                        currentFileContent = data.content;
-                    }
-                    currentFileName = data.filename;
-
-                    fileIndicator.classList.add('active');
-                    fileNameSpan.textContent = data.filename;
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Upload failed');
-            } finally {
-                uploadBtn.style.opacity = '1';
-                fileInput.value = '';
-            }
-        });
-
-        window.clearFile = function () {
-            currentFileContent = "";
-            currentFileName = "";
-            fileIndicator.classList.remove('active');
-        };
-
-        // --- Voice Chat (Web Speech API) ---
-        let recognition;
         let isVoiceMode = false;
         let isVoiceCallActive = false;
         let voiceCallUtterance = null;
+        let voices = [];
+        let recognition = null;
+        let currentAudio = null;
         let isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        // --- Paste rest of original JS logic here ---
-        // (Re-integrating the exact logic from previous steps to ensure it wasn't lost in the user's snippet view)
-
-        // Initialize voices on load
-        let voices = [];
+        // --- Elements ---
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const micBtn = document.getElementById('micBtn');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileIndicator = document.getElementById('fileIndicator');
+        const fileNameSpan = document.getElementById('fileName');
+        const welcomeScreen = document.getElementById('welcomeScreen');
         const voiceSelect = document.getElementById('voiceSelect');
         const rateRange = document.getElementById('rateRange');
         const pitchRange = document.getElementById('pitchRange');
         const voiceSettingsPanel = document.getElementById('voiceSettingsPanel');
+        const rateValueDisplay = document.getElementById('rateValue');
+        const pitchValueDisplay = document.getElementById('pitchValue');
+        const voiceCallBtn = document.getElementById('voiceCallBtn');
+        const voiceOverlay = document.getElementById('voiceOverlay');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const voiceVisualizer = document.getElementById('voiceVisualizer');
+        const voiceTranscript = document.getElementById('voiceTranscript');
+        const voiceSendBtn = document.getElementById('voiceSendBtn');
 
-        const premiumVoices = [
-            { name: "Premium: Alloy", id: "alloy" },
-            { name: "Premium: Echo", id: "echo" },
-            { name: "Premium: Fable", id: "fable" },
-            { name: "Premium: Onyx", id: "onyx" },
-            { name: "Premium: Nova", id: "nova" },
-            { name: "Premium: Shimmer", id: "shimmer" }
+        // --- Voice Logic ---
+        const voiceOptions = [
+            { name: "Male (Calm)", id: "male", type: "system" },
+            { name: "Female (Calm)", id: "female", type: "system" }
         ];
 
         function populateVoiceList() {
             voiceSelect.innerHTML = '';
-
-            // Add Premium Voices First
-            premiumVoices.forEach(v => {
+            voiceOptions.forEach(v => {
                 const option = document.createElement('option');
                 option.textContent = v.name;
                 option.setAttribute('data-id', v.id);
-                option.setAttribute('data-type', 'premium');
+                option.setAttribute('data-type', v.type);
                 voiceSelect.appendChild(option);
             });
 
-            if (window.speechSynthesis) {
-                voices = window.speechSynthesis.getVoices();
-                if (voices.length > 0) {
-                    const group = document.createElement('optgroup');
-                    group.label = "System Voices";
-                    voices.forEach((voice) => {
-                        const option = document.createElement('option');
-                        option.textContent = `${voice.name} (${voice.lang})`;
-                        option.setAttribute('data-lang', voice.lang);
-                        option.setAttribute('data-name', voice.name);
-                        option.setAttribute('data-type', 'system');
-                        group.appendChild(option);
-                    });
-                    voiceSelect.appendChild(group);
-                }
-            }
-
-            // Restore selection
-            const savedVoiceId = localStorage.getItem('eq_selected_voice_id');
-            if (savedVoiceId) {
-                // Try to find by ID (premium) or Name (system)
-                for (let i = 0; i < voiceSelect.options.length; i++) {
-                    const opt = voiceSelect.options[i];
-                    if (opt.getAttribute('data-id') === savedVoiceId || opt.getAttribute('data-name') === savedVoiceId) {
-                        voiceSelect.selectedIndex = i;
-                        break;
-                    }
-                }
+            const savedId = localStorage.getItem('eq_selected_voice_id');
+            if (savedId) {
+                const option = Array.from(voiceSelect.options).find(o => o.getAttribute('data-id') === savedId);
+                if (option) option.selected = true;
             } else {
-                // Default to first premium (Alloy)
                 voiceSelect.selectedIndex = 0;
             }
-        }
 
-        function populateVoiceListOld() {
-            if (!window.speechSynthesis) return;
-            voices = window.speechSynthesis.getVoices();
-            voiceSelect.innerHTML = '';
-            if (voices.length === 0) return;
-
-            const savedVoice = localStorage.getItem('eq_selected_voice');
-
-            voices.forEach((voice) => {
-                const option = document.createElement('option');
-                option.textContent = `${voice.name} (${voice.lang})`;
-                option.setAttribute('data-lang', voice.lang);
-                option.setAttribute('data-name', voice.name);
-
-                if (savedVoice && voice.name === savedVoice) {
-                    option.selected = true;
-                } else if (!savedVoice) {
-                    if (voice.name.includes('Google US') ||
-                        (isMobile && voice.name.includes('Samantha')) ||
-                        (isMobile && voice.name.includes('Daniel'))) {
-                        option.selected = true;
-                    }
+            if (window.speechSynthesis) {
+                const loadVoices = () => { voices = window.speechSynthesis.getVoices(); };
+                if (window.speechSynthesis.getVoices().length === 0) {
+                    window.speechSynthesis.onvoiceschanged = loadVoices;
+                } else {
+                    loadVoices();
                 }
-                voiceSelect.appendChild(option);
-            });
-        }
-
-        // Force render immediately for Premium voices
-        populateVoiceList();
-
-        // Re-render when system voices become available (common on mobile)
-        if (window.speechSynthesis) {
-            if (speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = populateVoiceList;
             }
         }
-
-        // Ensure it runs after full load (iOS Safari safety)
-        window.addEventListener('load', populateVoiceList);
-        document.addEventListener('DOMContentLoaded', populateVoiceList);
 
         voiceSelect.addEventListener('change', () => {
             const selectedOption = voiceSelect.selectedOptions[0];
@@ -867,28 +201,26 @@
             localStorage.setItem('eq_selected_voice_id', id);
         });
 
+        rateRange.addEventListener('input', () => { rateValueDisplay.innerText = rateRange.value; });
+        pitchRange.addEventListener('input', () => { pitchValueDisplay.innerText = pitchRange.value; });
+
         function toggleVoiceSettings() {
-            voiceSettingsPanel.classList.toggle('active');
+            voiceSettingsPanel.classList.toggle('active'); // CSS handles display flex/none
+            if (voiceSettingsPanel.classList.contains('active')) {
+                voiceSettingsPanel.style.display = 'flex';
+            } else {
+                voiceSettingsPanel.style.display = 'none';
+            }
         }
 
         window.testVoice = function () {
             speak("This is how I sound.", null, true);
         };
 
-        const voiceCallBtn = document.getElementById('voiceCallBtn');
-        const voiceOverlay = document.getElementById('voiceOverlay');
-        const voiceStatus = document.getElementById('voiceStatus');
-        const voiceVisualizer = document.getElementById('voiceVisualizer');
-        const voiceTranscript = document.getElementById('voiceTranscript');
-        const voiceSendBtn = document.getElementById('voiceSendBtn');
-
         window.activateVoiceOnMobile = function () {
             if (!isVoiceCallActive) return;
-
             const status = voiceStatus.innerText;
-            // Allow activation unless we are actively doing something else
             if (status !== "Listening..." && status !== "Thinking..." && !status.includes("Speaking")) {
-                // Force reset to ensure we can start fresh
                 try { recognition.stop(); } catch (e) { }
                 window.speechSynthesis.cancel();
                 startListening();
@@ -912,67 +244,15 @@
             }
         }
 
-        let currentAudio = null;
-
-        function speak(text, onEndCallback, isTest = false) {
-            // Stop any existing audio
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
+        function speak(text, onEndCallback, isTest) {
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
             if (window.speechSynthesis) window.speechSynthesis.cancel();
-
-            const selectedOption = voiceSelect.selectedOptions[0];
-            const type = selectedOption ? selectedOption.getAttribute('data-type') : 'premium'; // Default to premium
 
             const textToSpeak = text.replace(/[*#`_]/g, '')
                 .replace(/!\[.*?\]\(.*?\)/g, ' I have generated an image. ')
                 .replace(/\[DOWNLOAD:.*?\]/g, ' File ready. ');
 
-            if (type === 'premium') {
-                const voiceId = selectedOption ? selectedOption.getAttribute('data-id') : 'alloy';
-
-                if (isVoiceCallActive || isTest) {
-                    if (!isTest) voiceStatus.innerText = "EQ Speaking...";
-                    voiceVisualizer.classList.add('speaking');
-                    if (!isTest) {
-                        voiceTranscript.innerText = "";
-                        voiceSendBtn.style.display = 'none';
-                    }
-                }
-
-                fetch('/tts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: textToSpeak, voice: voiceId })
-                })
-                    .then(res => {
-                        if (!res.ok) throw new Error("TTS Failed");
-                        return res.blob();
-                    })
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        currentAudio = new Audio(url);
-                        currentAudio.playbackRate = parseFloat(rateRange.value);
-
-                        currentAudio.onended = () => {
-                            if (isVoiceCallActive || isTest) {
-                                voiceVisualizer.classList.remove('speaking');
-                                if (onEndCallback) onEndCallback();
-                            }
-                        };
-
-                        currentAudio.play().catch(e => console.error(e));
-                    })
-                    .catch(e => {
-                        console.error("Premium TTS failed, falling back to system", e);
-                        // Fallback to system
-                        speakSystem(textToSpeak, onEndCallback, isTest);
-                    });
-
-            } else {
-                speakSystem(textToSpeak, onEndCallback, isTest);
-            }
+            speakSystem(textToSpeak, onEndCallback, isTest);
         }
 
         function speakSystem(text, onEndCallback, isTest) {
@@ -980,19 +260,23 @@
                 if (onEndCallback) onEndCallback();
                 return;
             }
+            if (voices.length === 0) voices = window.speechSynthesis.getVoices();
 
             const utterance = new SpeechSynthesisUtterance(text);
             voiceCallUtterance = utterance;
 
             const selectedOption = voiceSelect.selectedOptions[0];
-            if (selectedOption && selectedOption.getAttribute('data-type') === 'system') {
-                const selectedName = selectedOption.getAttribute('data-name');
-                const voice = voices.find(v => v.name === selectedName);
-                if (voice) utterance.voice = voice;
-            } else if (voices.length > 0) {
-                const fallback = voices.find(v => v.lang === 'en-US') || voices[0];
-                utterance.voice = fallback;
+            const gender = selectedOption ? selectedOption.getAttribute('data-id') : 'male';
+
+            let targetVoice = null;
+            if (gender === 'female') {
+                targetVoice = voices.find(v => v.name.includes('Zira') || v.name.includes('Google US English') || v.name.includes('Samantha') || v.name.includes('Female'));
+            } else {
+                targetVoice = voices.find(v => v.name.includes('David') || v.name.includes('Daniel') || v.name.includes('Male'));
             }
+
+            if (targetVoice) utterance.voice = targetVoice;
+            else utterance.voice = voices.find(v => v.lang.startsWith('en')) || voices[0];
 
             utterance.rate = parseFloat(rateRange.value);
             utterance.pitch = parseFloat(pitchRange.value);
@@ -1025,6 +309,7 @@
             window.speechSynthesis.speak(utterance);
         }
 
+        // --- Recognition Setup ---
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
@@ -1045,7 +330,6 @@
             };
 
             recognition.onerror = (event) => {
-                console.error("Recognition error:", event.error);
                 if (isVoiceCallActive) {
                     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                         voiceStatus.innerText = "Microphone Access Denied";
@@ -1060,7 +344,6 @@
             recognition.onend = () => {
                 micBtn.classList.remove('recording');
                 userInput.placeholder = "Message EQ...";
-
                 if (isVoiceCallActive && !window.blockRestart) {
                     if (isMobile) {
                         voiceStatus.innerText = "Tap circle to speak";
@@ -1068,8 +351,7 @@
                     } else {
                         setTimeout(() => {
                             if (isVoiceCallActive && !window.speechSynthesis.speaking) {
-                                try { recognition.start(); }
-                                catch (e) {
+                                try { recognition.start(); } catch (e) {
                                     voiceStatus.innerText = "Tap circle to speak";
                                     voiceVisualizer.style.opacity = '0.5';
                                 }
@@ -1084,7 +366,6 @@
                 for (let i = 0; i < event.results.length; i++) {
                     fullTranscript += event.results[i][0].transcript;
                 }
-
                 if (isVoiceCallActive) {
                     voiceTranscript.innerText = fullTranscript;
                     userInput.value = fullTranscript;
@@ -1110,6 +391,7 @@
                 window.blockRestart = false;
                 voiceOverlay.classList.add('active');
 
+                // iOS Wakeup
                 if (window.speechSynthesis) {
                     const dummy = new SpeechSynthesisUtterance('');
                     dummy.volume = 0;
@@ -1118,7 +400,6 @@
                 }
 
                 if (recognition && recognition.abort) recognition.abort();
-
                 setTimeout(() => {
                     userInput.value = '';
                     startListening();
@@ -1127,13 +408,10 @@
 
             voiceSendBtn.addEventListener('click', () => {
                 if (!isVoiceCallActive) return;
-
                 const text = userInput.value.trim();
                 if (!text) return;
-
                 window.blockRestart = true;
                 recognition.stop();
-
                 voiceStatus.innerText = "Thinking...";
                 handleSend();
             });
@@ -1151,7 +429,7 @@
             voiceCallBtn.style.display = 'none';
         }
 
-        // --- UI Logic ---
+        // --- Chat Logic ---
         function removeWelcomeScreen() {
             if (welcomeScreen && welcomeScreen.parentNode) {
                 welcomeScreen.parentNode.removeChild(welcomeScreen);
@@ -1247,6 +525,8 @@
                 const data = await res.json();
 
                 if (typingIndicator.parentNode) chatMessages.removeChild(typingIndicator);
+                if (data.alert) alert(data.alert);
+
                 addEQMessage(data.response);
 
                 if (isVoiceMode || isVoiceCallActive) {
@@ -1277,9 +557,7 @@
             }
         }
 
-        sendButton.addEventListener('click', () => {
-            handleSend();
-        });
+        sendButton.addEventListener('click', handleSend);
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 isVoiceMode = false;
@@ -1287,7 +565,55 @@
             }
         });
 
-        userInput.focus();
+        // --- File Upload ---
+        uploadBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            const userId = localStorage.getItem('eq_user_id');
+            if (userId) formData.append('user_id', userId);
+
+            try {
+                uploadBtn.style.opacity = '0.5';
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.error) {
+                    alert('Upload failed: ' + data.error);
+                } else {
+                    if (data.full_content && data.full_content.length < 50000) {
+                        currentFileContent = data.full_content;
+                    } else {
+                        currentFileContent = data.content;
+                    }
+                    currentFileName = data.filename;
+                    fileIndicator.classList.add('active');
+                    fileNameSpan.textContent = data.filename;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Upload failed');
+            } finally {
+                uploadBtn.style.opacity = '1';
+                fileInput.value = '';
+            }
+        });
+
+        window.clearFile = function () {
+            currentFileContent = "";
+            currentFileName = "";
+            fileIndicator.classList.remove('active');
+        };
+
+        // --- Init ---
+        window.addEventListener('load', populateVoiceList);
+        // Fallback safety
+        setTimeout(populateVoiceList, 1000);
+
     </script>
 </body>
 

@@ -248,7 +248,7 @@ def is_rate_limited(user_identifier, limit=10, period_seconds=60):
                       
     return recent_count >= limit
 
-def get_ai_response(user_identifier, user_message):
+def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo"):
     try:
         # 1. Save User Message
         save_message(user_identifier, 'user', user_message)
@@ -273,7 +273,7 @@ def get_ai_response(user_identifier, user_message):
         history += get_recent_messages(user_identifier)
 
         payload = {
-            "model": "openai/gpt-3.5-turbo",
+            "model": model,
             "messages": history,
             "temperature": 0.8
         }
@@ -355,19 +355,15 @@ def update_quota(user_identifier, quota_type):
     
 # --- TTS Logic ---
 PROFESSIONAL_VOICES = {
-    'alloy': 'openai/tts-1',
-    'echo': 'openai/tts-1', 
-    'fable': 'openai/tts-1',
-    'onyx': 'openai/tts-1',
-    'nova': 'openai/tts-1',
-    'shimmer': 'openai/tts-1'
+    'echo': 'openai/tts-1',
+    'nova': 'openai/tts-1'
 }
 
 @app.route('/tts', methods=['POST'])
 def tts_generate():
     data = request.json
     text = data.get('text')
-    voice = data.get('voice', 'alloy') # Default to alloy
+    voice = data.get('voice', 'echo') # Default to echo
     
     if not text:
         return jsonify({"error": "No text provided"}), 400
@@ -538,9 +534,16 @@ def chat():
         return jsonify({"response": "I didn't catch that. Could you say it again?"})
 
     # 2. Check Daily Message Quota
-    if not check_quota(user_identifier, 'messages'):
-        return jsonify({"response": "Time out! Upgrade to Premium or try again tomorrow. 🌙"})
+    is_premium_quota = check_quota(user_identifier, 'messages')
+    
+    current_model = "openai/gpt-3.5-turbo"
+    alert_msg = None
 
+    if not is_premium_quota:
+        # Switched to cheaper model
+        current_model = "meta-llama/llama-3-8b-instruct:free"
+        alert_msg = "Switched to a cheaper one."
+        
     # 2.5 Rate Limiting Logic (Spam Protection)
     if is_rate_limited(user_identifier):
         return jsonify({"response": "Whoa, take a deep breath! We're moving a bit fast. Give me a moment to catch up. 🌿"})
@@ -569,10 +572,18 @@ def chat():
     # We need to pass quota info to get_ai_response if we want AI to know
     # For now, we'll just check the OUTPUT.
     
-    ai_response = get_ai_response(user_identifier, user_input)
+    # Use the selected model
+    ai_response = get_ai_response(user_identifier, user_input, model=current_model)
     
     if ai_response:
-        # Increment message count
+        # Increment message count (Always increment? Yes, to track total usage, though check_quota only cares about first 15)
+        # Actually update_quota logic checks if under limit, then increments.
+        # But if we are over limit, we still want to count usage?
+        # My update_quota function increments unconditionally if check_quota called inside it passes?
+        # Let's verify usage of update_quota.
+        # It calls check_quota then increments.
+        # If check_quota returns false, it returns false? No, update_quota returns None.
+        # But it increments anyway.
         update_quota(user_identifier, 'messages')
         
         # Check if an image was generated
@@ -597,7 +608,12 @@ def chat():
         else:
              response = "hey! (I'm having trouble connecting to the cloud!)"
 
-    return jsonify({"response": response})
+    # Construct JSON response
+    final_response = {"response": response}
+    if alert_msg:
+        final_response["alert"] = alert_msg
+
+    return jsonify(final_response)
 
 # ⚡ THIS FIXES THE DATABASE ERROR
 with app.app_context():
