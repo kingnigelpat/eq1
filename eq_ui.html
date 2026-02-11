@@ -64,14 +64,14 @@
                     </svg>
                 </button>
             </div>
-            <div style="text-align:center; margin-top:10px;">
-                <button class="action-button" id="voiceCallBtn"
-                    style="margin:0 auto; width:50px; height:50px; background:rgba(255,255,255,0.05);">
-                    <svg viewBox="0 0 24 24" style="width:24px; height:24px;">
+            <div class="voice-call-wrapper">
+                <button class="voice-call-btn" id="voiceCallBtn" title="Start Voice Call">
+                    <svg viewBox="0 0 24 24">
                         <path
-                            d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1zM12 3v10l3-3h6V3h-9z" />
+                            d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" />
                     </svg>
                 </button>
+                <div class="voice-call-label">Call EQ</div>
             </div>
         </div>
     </div>
@@ -162,8 +162,8 @@
 
         // --- Voice Logic ---
         const voiceOptions = [
-            { name: "Male (Calm)", id: "male", type: "system" },
-            { name: "Female (Calm)", id: "female", type: "system" }
+            { name: "EQ (Male)", id: "male-premium", type: "premium" },
+            { name: "EQ (Female)", id: "female-premium", type: "premium" }
         ];
 
         function populateVoiceList() {
@@ -176,6 +176,7 @@
                 voiceSelect.appendChild(option);
             });
 
+            // Restore selection
             const savedId = localStorage.getItem('eq_selected_voice_id');
             if (savedId) {
                 const option = Array.from(voiceSelect.options).find(o => o.getAttribute('data-id') === savedId);
@@ -184,13 +185,18 @@
                 voiceSelect.selectedIndex = 0;
             }
 
-            if (window.speechSynthesis) {
-                const loadVoices = () => { voices = window.speechSynthesis.getVoices(); };
-                if (window.speechSynthesis.getVoices().length === 0) {
-                    window.speechSynthesis.onvoiceschanged = loadVoices;
-                } else {
-                    loadVoices();
-                }
+            updateVoiceControls();
+        }
+
+        function updateVoiceControls() {
+            const selectedOption = voiceSelect.selectedOptions[0];
+            const type = selectedOption ? selectedOption.getAttribute('data-type') : 'premium';
+
+            // Hide Pitch control for Premium voices (not supported by HTML5 Audio)
+            if (type === 'premium') {
+                pitchRange.parentElement.style.display = 'none';
+            } else {
+                pitchRange.parentElement.style.display = 'block';
             }
         }
 
@@ -199,13 +205,14 @@
             const type = selectedOption.getAttribute('data-type');
             const id = type === 'premium' ? selectedOption.getAttribute('data-id') : selectedOption.getAttribute('data-name');
             localStorage.setItem('eq_selected_voice_id', id);
+            updateVoiceControls();
         });
 
         rateRange.addEventListener('input', () => { rateValueDisplay.innerText = rateRange.value; });
         pitchRange.addEventListener('input', () => { pitchValueDisplay.innerText = pitchRange.value; });
 
         function toggleVoiceSettings() {
-            voiceSettingsPanel.classList.toggle('active'); // CSS handles display flex/none
+            voiceSettingsPanel.classList.toggle('active');
             if (voiceSettingsPanel.classList.contains('active')) {
                 voiceSettingsPanel.style.display = 'flex';
             } else {
@@ -248,11 +255,66 @@
             if (currentAudio) { currentAudio.pause(); currentAudio = null; }
             if (window.speechSynthesis) window.speechSynthesis.cancel();
 
+            // Visualizer Reset
+            voiceVisualizer.classList.remove('speaking');
+
             const textToSpeak = text.replace(/[*#`_]/g, '')
                 .replace(/!\[.*?\]\(.*?\)/g, ' I have generated an image. ')
                 .replace(/\[DOWNLOAD:.*?\]/g, ' File ready. ');
 
-            speakSystem(textToSpeak, onEndCallback, isTest);
+            const selectedOption = voiceSelect.selectedOptions[0];
+            const type = selectedOption ? selectedOption.getAttribute('data-type') : 'premium';
+            const voiceId = selectedOption ? selectedOption.getAttribute('data-id') : 'male-premium';
+
+            if (type === 'premium') {
+                // Server-Side Edge TTS
+                if (isVoiceCallActive || isTest) {
+                    if (!isTest) voiceStatus.innerText = "Generating Voice...";
+                    // Animation deferred until playback starts
+                    if (!isTest) {
+                        voiceTranscript.innerText = "";
+                        voiceSendBtn.style.display = 'none';
+                    }
+                }
+
+                fetch('/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: textToSpeak, voice: voiceId })
+                })
+                    .then(response => {
+                        if (!response.ok) throw new Error('TTS Failed');
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        const audioUrl = URL.createObjectURL(blob);
+                        currentAudio = new Audio(audioUrl);
+                        currentAudio.playbackRate = parseFloat(rateRange.value) || 1.0;
+
+                        currentAudio.onplay = () => {
+                            if (isVoiceCallActive || isTest) {
+                                voiceVisualizer.classList.add('speaking');
+                                if (!isTest) voiceStatus.innerText = "EQ Speaking...";
+                            }
+                        };
+
+                        currentAudio.onended = () => {
+                            voiceVisualizer.classList.remove('speaking');
+                            if (isVoiceCallActive && !isTest) {
+                                voiceStatus.innerText = "Tap circle to speak"; // Reset status
+                            }
+                            if (onEndCallback) onEndCallback();
+                        };
+
+                        currentAudio.play();
+                    })
+                    .catch(err => {
+                        console.error("Premium Voice Failed, falling back to system:", err);
+                        speakSystem(textToSpeak, onEndCallback, isTest);
+                    });
+            } else {
+                speakSystem(textToSpeak, onEndCallback, isTest);
+            }
         }
 
         function speakSystem(text, onEndCallback, isTest) {
@@ -272,7 +334,11 @@
             if (gender === 'female') {
                 targetVoice = voices.find(v => v.name.includes('Zira') || v.name.includes('Google US English') || v.name.includes('Samantha') || v.name.includes('Female'));
             } else {
-                targetVoice = voices.find(v => v.name.includes('David') || v.name.includes('Daniel') || v.name.includes('Male'));
+                // Prioritize David (Windows) or Alex (Apple US)
+                targetVoice = voices.find(v => v.name.includes('David') || v.name.includes('Alex'));
+
+                // Fallback to Daniel (British) or generic Male
+                if (!targetVoice) targetVoice = voices.find(v => v.name.includes('Daniel') || v.name.includes('Male'));
             }
 
             if (targetVoice) utterance.voice = targetVoice;

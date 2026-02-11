@@ -614,3 +614,103 @@ body {
         box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
     }
 }
+
+/* Enhanced Mobile UI */
+
+.voice-call-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 15px;
+    gap: 5px;
+}
+
+.voice-call-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    color: var(--text-gray);
+    position: relative;
+    overflow: hidden;
+}
+
+.voice-call-btn::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.voice-call-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
+    color: var(--primary);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.1);
+}
+
+.voice-call-btn:hover::after {
+    opacity: 1;
+}
+
+.voice-call-btn svg {
+    width: 28px;
+    height: 28px;
+    fill: currentColor;
+    z-index: 1;
+}
+
+.voice-call-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    user-select: none;
+}
+
+/* Mobile Touch Targets */
+@media (max-width: 600px) {
+    .action-button {
+        padding: 10px;
+        /* Bigger target */
+    }
+
+    .chat-input-area {
+        padding: 15px 20px;
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+
+    .input-wrapper {
+        padding: 12px 16px;
+    }
+
+    .voice-call-btn {
+        width: 64px;
+        /* Big thumb target */
+        height: 64px;
+        margin-bottom: 5px;
+    }
+
+    .voice-call-btn svg {
+        width: 32px;
+        height: 32px;
+    }
+
+    .voice-call-label {
+        font-size: 0.8rem;
+        margin-bottom: 20px;
+        /* Space from bottom edge */
+    }
+}

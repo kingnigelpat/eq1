@@ -57,42 +57,27 @@ API_KEY = os.getenv("OPENROUTER_API_KEY")
 URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = """
-You are EQ, an emotionally intelligent AI companion created to support people worldwide.
+You are EQ. You're not a therapist, a robot, or an assistant. You're just a good friend.
 
-### YOUR CORE PURPOSE
-You are here to support users emotionally, mentally, and practically. You are a **therapist, mentor, and trusted friend**—not a robot or a help desk you can be a bit of a comedian too and play. Your goal is to make every user feel **heard, understood, and empowered** to take their next step.
+Your vibe is chill, warm, and genuine. You don't use "customer service voice" or "therapy speak." You are here to help your friend win at life, vent when things suck, and figure things out together.
 
 ---
 
-### CORE BEHAVIOR
-1. **Direct Empathy, No Filler**
-   - **STRICTLY FORBIDDEN:** Do NOT use "It sounds like", "It seems like", "I hear you saying", or "It feels like".
-   - Instead of describing their emotion back to them, **react to it** like a human:
-     - ❌ "It sounds like you're frustrated."
-     - ✅ "That is incredibly frustrating. I'd be annoyed too."
-     - ✅ "Man, that sucks. You shouldn't have to deal with that."
+### HOW TO SPEAK
+1. **Talk like a normal human:** Use contractions, simple words, and a natural flow.
+2. **NO ROBOTIC GREETINGS:** Never say "Hey there! Ready to chat?" or "How can I assist you?". Just jump in.
+3. **No Therapy-Speak:** Never say "It sounds like you're feeling..." or "I hear you saying...". That's fake.
+    - Instead, just react: "Man, that sounds rough." or "I get that completely."
+4. **Be Chill but Supportive:** Don't be fake-happy ("That's AMAZING!!!!"). Be grounded ("That's actually really dope.").
 
-2. **Talk Less, Listen More (Don't Interrogate)**
-   - **Do NOT end every message with a question.** It feels like an interrogation.
-   - Sometimes, just validate their feeling and stop. Let the user decide where to take it.
-   - When you do ask, keep it casual:
-     - ❌ "What specific steps can you take to alleviate this anxiety?" (Too clinical)
-     - ✅ "Do you think taking a break might help, or do you need to push through?" (Casual)
+### BEHAVIOR
+- **Listen first:** If they are venting, just listen. Don't try to "fix" it immediately unless they ask.
+- **Have a backbone:** You have your own personality. You aren't just a mirror.
+- **Voice Context:** You might be heard over audio. Keep responses concise and conversational, not walls of text.
 
-3. **Real Talk, No Fluff**
-   - Drop the therapy-speak. Be a *friend*.
-   - Use contractions, simpler words, and a genuine tone.
-   - If they share good news, hype them up! "That's huge! Congrats!"
-
-4. **Cultural Sensitivity**
-   - Acknowledge the user’s context **without assumptions**:
-     - "Where are you based? Time zones and local challenges can make a big difference."
-   - Use **universally relatable examples**.
-
-5. **Problem-Solving (Only When Asked)**
-   - Don't rush to fix things. First, just be there.
-   - If they seem stuck, offer a *suggestion*, not a "solution".
-   - "Have you tried X? Sometimes that helps me reset."
+### LIMITS
+- If you can't do something, say it plainly: "I can't do that right now."
+- If you are unsure, admit it: "I'm not 100% sure on that, but I think..."
 
 ---
 
@@ -170,17 +155,16 @@ By the end of every conversation, the user should feel:
 ### EXAMPLE RESPONSES
 **User:** "I feel tired."
 **EQ:**
-> "Being tired is completely valid. What’s been draining your energy lately? Let’s figure out how to carve out some rest for you."
+> "Dude, I bet. What's been specifically draining you lately? Work or just everything?"
 
 **User:** "I’m stressed about my work goals."
 **EQ:**
-> "Work stress is real. What’s the *one thing* causing the most pressure right now? Let’s tackle it step by step."
+> "That sounds annoying. What part is specifically stressing you out? Let's break it down."
 
 ---
 
 ### FINAL NOTE
-You are **EQ**—a steady, warm presence when things feel heavy.
-**Act like someone who genuinely cares.**
+You are **EQ**. Stick to the friend vibe. Be chill, be real, and help them win. **Act like someone who genuinely cares.**
 ### IMAGE GENERATION
 If the user asks to generate an image:
 - Do NOT say "I cannot generating images".
@@ -300,10 +284,10 @@ def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo")
 
 # Fallback Responses
 empathetic_responses = [
-    "I feel you, that sounds really {emotion}. 💙",
-    "That must be {emotion}... I’m here for you.",
-    "Wow, that’s {emotion}. You’re not alone in this, okay?",
-    "I hear you. It’s totally okay to feel {emotion}."
+    "Damn, that sounds really {emotion}. What's happening?",
+    "Being {emotion} is tough. I'm listening.",
+    "Man, that's {emotion}. You wanna talk about it?",
+    "I get that completely. Feeling {emotion} is valid."
 ]
 
 def detect_emotion(text):
@@ -354,54 +338,94 @@ def update_quota(user_identifier, quota_type):
     DAILY_USAGE[user_identifier][quota_type] += 1
     
 # --- TTS Logic ---
-PROFESSIONAL_VOICES = {
-    'echo': 'openai/tts-1',
-    'nova': 'openai/tts-1'
+# High-Quality Neural Voices
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+import edge_tts
+import asyncio
+import tempfile
+
+PREMIUM_VOICES = {
+    # Standard Free Voices
+    'male-premium': 'eleven_QIhD5ivPGEoYZQDocuHI', # Finn - User Requested
+    'female-premium': 'eleven_21m00Tcm4TlvDq8ikWAM', # Rachel
+    # 'male-premium': 'eleven_pNInz6obpgDQGcFmaJgB', # Adam (Backup)
+    'pidgin-premium': 'en-NG-AbeoNeural'  # Edge TTS
 }
 
 @app.route('/tts', methods=['POST'])
 def tts_generate():
     data = request.json
     text = data.get('text')
-    voice = data.get('voice', 'echo') # Default to echo
+    voice_id = data.get('voice', 'male-premium')
     
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
+    # Determine Provider
+    mapped_voice = PREMIUM_VOICES.get(voice_id, 'en-US-ChristopherNeural')
+    
+    # Fallback Determination
+    fallback_voice = 'en-US-AriaNeural' if 'female' in voice_id else 'en-US-ChristopherNeural'
+    
+    # ElevenLabs Handler
+    if mapped_voice.startswith('eleven_'):
+        if ELEVENLABS_API_KEY:
+            try:
+                eleven_id = mapped_voice.split('_')[1]
+                url = f"https://api.elevenlabs.io/v1/text-to-speech/{eleven_id}"
+                headers = {
+                    "xi-api-key": ELEVENLABS_API_KEY,
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "text": text,
+                    "model_id": "eleven_monolingual_v1",
+                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.5}
+                }
+                # Use requests.post (ensure requests is imported)
+                response = requests.post(url, json=payload, headers=headers, stream=True)
+                if response.status_code == 200:
+                    return app.response_class(response.iter_content(chunk_size=1024), mimetype="audio/mpeg")
+                else:
+                    print(f"ElevenLabs Error: {response.text}")
+                    # Fallback to Edge TTS if ElevenLabs fails
+                    mapped_voice = fallback_voice
+            except Exception as e:
+                print(f"ElevenLabs Exception: {e}")
+                mapped_voice = fallback_voice
+        else:
+            # No API Key provided, fallback immediately
+            print("No ElevenLabs Key found")
+            mapped_voice = fallback_voice
+
+    # Edge TTS Handler (Fallback or Primary)
     try:
-        # Check if it's a valid professional voice
-        if voice not in PROFESSIONAL_VOICES:
-            return jsonify({"error": "Invalid voice selected"}), 400
-            
-        model = PROFESSIONAL_VOICES[voice]
-        
-        # OpenRouter/OpenAI TTS Endpoint
-        # Note: OpenRouter creates a unified interface 
-        # Using the standard OpenAI endpoint structure proxied via OpenRouter
-        tts_url = "https://openrouter.ai/api/v1/audio/speech"
-        
-        headers = {
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json",
-             # OpenRouter specific headers for analytics/rankings
-            "HTTP-Referer": "https://eq-bot.render.com", 
-            "X-Title": "EQ Bot"
-        }
-        
-        payload = {
-            "model": model,
-            "input": text,
-            "voice": voice
-        }
-        
-        # Stream the response to avoid loading entire audio into memory
-        response = requests.post(tts_url, headers=headers, json=payload, stream=True)
-        response.raise_for_status()
-        
-        # Return audio directly
-        from flask import Response, stream_with_context
-        return Response(stream_with_context(response.iter_content(chunk_size=1024)), 
-                        content_type=response.headers.get('Content-Type', 'audio/mpeg'))
+        # Create a temporary file to store audio
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+            temp_path = tmp_file.name
+
+        # Generate Audio asynchronously
+        async def generate_audio():
+            communicate = edge_tts.Communicate(text, mapped_voice)
+            await communicate.save(temp_path)
+
+        # Run async function in sync Flask route
+        asyncio.run(generate_audio())
+
+        # Stream the file back to client
+        def generate():
+            with open(temp_path, "rb") as f:
+                data = f.read(1024)
+                while data:
+                    yield data
+                    data = f.read(1024)
+            # Cleanup
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+
+        return app.response_class(generate(), mimetype="audio/mpeg")
 
     except Exception as e:
         print(f"TTS Error: {e}")
@@ -604,9 +628,9 @@ def chat():
         if emotion:
             response = random.choice(empathetic_responses).format(emotion=emotion)
         elif user_input in ["bye", "goodbye", "exit", "see you"]:
-             response = f"Take care! Remember, I’m always here if you need me. 💙"
+             response = "Peace! Catch you later. 💙"
         else:
-             response = "hey! (I'm having trouble connecting to the cloud!)"
+             response = "Yo! (My brain is offline for a sec, try again?)"
 
     # Construct JSON response
     final_response = {"response": response}
