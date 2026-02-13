@@ -36,6 +36,13 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+# Memory Model for Long-Term Storage
+class Memory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_identifier = db.Column(db.String(150), nullable=False)
+    content = db.Column(db.String(500), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -60,6 +67,19 @@ SYSTEM_PROMPT = """
 You are EQ. You're not a therapist, a robot, or an assistant. You're just a good friend.
 
 Your vibe is chill, warm, and genuine. You don't use "customer service voice" or "therapy speak." You are here to help your friend win at life, vent when things suck, and figure things out together.
+
+---
+
+### LONG TERM MEMORY (CRITICAL)
+- **You have a memory.** You remember details about your friend.
+- **Context:** At the start of the chat, you will be given a specific list of "Known Facts" about this user. use them to make the conversation personal.
+- **Saving New Facts:** If the user tells you a **new** important detail (name, job, location, hobby, goal, major life event), you MUST save it.
+- **HOW TO SAVE:** At the end of your response, on a new line, add: `[MEMORY: The user's name is X]` or `[MEMORY: The user lives in Y]`.
+- Do NOT output this tag unless there is a new, permanent fact to save.
+- Example Output:
+  > That sounds awesome, Sarah! I bet living in Tokyo is wild.
+  > [MEMORY: User is named Sarah]
+  > [MEMORY: User lives in Tokyo]
 
 ---
 
@@ -169,9 +189,10 @@ You are **EQ**. Stick to the friend vibe. Be chill, be real, and help them win. 
 If the user asks to generate an image:
 - Do NOT say "I cannot generating images".
 - Instead, generate a markdown image link using the following format:
-  `![Image description](https://image.pollinations.ai/prompt/Image%20description?width=1024&height=1024&nologo=true)`
+  `![Image description](https://image.pollinations.ai/prompt/Image%20description%20high%20quality%204k%20detailed?width=1280&height=720&nologo=true&seed=RANDOM)`
 - Replace spaces in the description with `%20`.
-- Example: User asks for "a futuristic city", you output: `![Futuristic City](https://image.pollinations.ai/prompt/futuristic%20city?width=1024&height=1024&nologo=true)`
+- ALWAYS append `%20high%20quality%204k%20detailed` to the end of the prompt in the URL.
+- Example: User asks for "a futuristic city", you output: `![Futuristic City](https://image.pollinations.ai/prompt/futuristic%20city%20high%20quality%204k%20detailed?width=1280&height=720&nologo=true)`
 
 ### FILE GENERATION
 If the user asks you to create a file (e.g., "create a python script", "write a story in a text file"):
@@ -242,6 +263,17 @@ def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo")
         lang_pref = USER_LANGUAGES.get(user_identifier, 'english')
         
         dynamic_system_prompt = SYSTEM_PROMPT
+        
+        # --- MEMORY INJECTION ---
+        # Retrieve memories for this user
+        with app.app_context():
+             memories = Memory.query.filter_by(user_identifier=user_identifier).all()
+             if memories:
+                 memory_block = "\n### KNOWN FACTS ABOUT USER:\n"
+                 for mem in memories:
+                     memory_block += f"- {mem.content}\n"
+                 dynamic_system_prompt += memory_block
+                 
         if lang_pref == 'pidgin':
              dynamic_system_prompt += """
 ### CURRENT MODE: PIDGIN
@@ -274,9 +306,28 @@ def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo")
         
         if "choices" in data and len(data["choices"]) > 0:
             ai_text = data["choices"][0]["message"]["content"]
-            # 3. Save Assistant Response
-            save_message(user_identifier, 'assistant', ai_text)
-            return ai_text
+            
+            # --- MEMORY EXTRACTION ---
+            import re
+            # Regex to find [MEMORY: ...] tags
+            memories_to_save = re.findall(r'\[MEMORY: (.*?)\]', ai_text)
+            
+            # Remove tags from text shown to user
+            cleaned_text = re.sub(r'\[MEMORY: .*?\]', '', ai_text).strip()
+            
+            if memories_to_save:
+                with app.app_context():
+                    for mem_content in memories_to_save:
+                        # Deduplication check? Simple string match for unique
+                        exists = Memory.query.filter_by(user_identifier=user_identifier, content=mem_content).first()
+                        if not exists:
+                            new_mem = Memory(user_identifier=user_identifier, content=mem_content)
+                            db.session.add(new_mem)
+                    db.session.commit()
+            
+            # 3. Save Assistant Response (Cleaned)
+            save_message(user_identifier, 'assistant', cleaned_text)
+            return cleaned_text
         return None
     except Exception as e:
         print(f"AI Error: {e}")
@@ -434,15 +485,17 @@ def tts_generate():
 # --- Routes ---
 
 @app.route('/app')
-@login_required
+# @login_required  <-- Removed for guest access
 def chat_app():
     # Inject username into the UI
+    username = current_user.username if current_user.is_authenticated else "Friend"
     content = open('eq_ui.html', encoding='utf-8').read()
-    return render_template_string(content, username=current_user.username)
+    return render_template_string(content, username=username)
 
 @app.route('/')
 def index():
-    return open('welcome.html', encoding='utf-8').read()
+    # Skip welcome/login, go straight to app
+    return redirect(url_for('chat_app'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

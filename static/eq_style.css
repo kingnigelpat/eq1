@@ -123,25 +123,36 @@ body {
     align-items: center;
     text-align: center;
     padding: 40px 20px;
-    animation: fadeIn 0.6s ease-out;
+    animation: fadeIn 0.8s ease-out;
     height: 100%;
 }
 
 .welcome-title {
-    font-size: clamp(1.6rem, 8vw, 2.4rem);
-    font-weight: 300;
-    background: linear-gradient(135deg, #FFD700, #D4AF37, #AA8C2C);
+    font-size: clamp(2rem, 10vw, 3.5rem);
+    font-weight: 700;
+    margin-bottom: 12px;
+    background: linear-gradient(to right, #ffffff, #D4AF37, #ffffff);
+    background-size: 200% auto;
+    color: #fff;
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 12px;
+    animation: shine 3s linear infinite;
+    letter-spacing: -1px;
+}
+
+@keyframes shine {
+    to {
+        background-position: 200% center;
+    }
 }
 
 .welcome-subtitle {
     color: var(--text-muted);
-    font-size: clamp(0.85rem, 4vw, 1rem);
-    max-width: 400px;
-    line-height: 1.5;
+    font-size: clamp(1rem, 4vw, 1.2rem);
+    max-width: 500px;
+    line-height: 1.6;
+    opacity: 0.8;
 }
 
 /* Message Bubbles */
@@ -269,6 +280,9 @@ body {
     background-color: rgba(0, 0, 0, 0.95);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding-bottom: max(15px, env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
 .input-wrapper {
@@ -280,6 +294,7 @@ body {
     border-radius: 24px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     transition: border-color 0.2s;
+    flex: 1;
 }
 
 .input-wrapper:focus-within {
@@ -622,8 +637,10 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    margin-top: 15px;
+    justify-content: center;
+    margin-top: 0;
     gap: 5px;
+    flex-shrink: 0;
 }
 
 .voice-call-btn {
@@ -700,7 +717,7 @@ body {
         width: 64px;
         /* Big thumb target */
         height: 64px;
-        margin-bottom: 5px;
+        margin-bottom: 0;
     }
 
     .voice-call-btn svg {

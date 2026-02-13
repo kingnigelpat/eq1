@@ -16,7 +16,7 @@
         <header class="chat-header">
             <span class="logo-text">EQ</span>
             <div style="display:flex; gap:15px; align-items:center;">
-                <a href="/logout" class="logout-link">Logout</a>
+                <!-- Logout removed -->
             </div>
         </header>
 
@@ -46,7 +46,7 @@
                             d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                     </svg>
                 </button>
-                <input type="file" id="fileInput" hidden accept=".txt,.pdf,.md,.py,.js,.html,.css,.json">
+                <input type="file" id="fileInput" hidden>
 
                 <input type="text" class="chat-input" id="userInput" placeholder="Type a message..." autocomplete="off">
 
@@ -71,7 +71,7 @@
                             d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" />
                     </svg>
                 </button>
-                <div class="voice-call-label">Call EQ</div>
+
             </div>
         </div>
     </div>
@@ -526,8 +526,29 @@
                 try {
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF();
-                    const splitText = doc.splitTextToSize(content, 180);
-                    doc.text(splitText, 15, 20);
+
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(12);
+
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const pageHeight = doc.internal.pageSize.getHeight();
+                    const margin = 20;
+                    const maxLineWidth = pageWidth - (margin * 2);
+
+                    const splitText = doc.splitTextToSize(content, maxLineWidth);
+
+                    let y = 20;
+                    const lineHeight = 7;
+
+                    for (let i = 0; i < splitText.length; i++) {
+                        if (y + lineHeight > pageHeight - margin) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        doc.text(splitText[i], margin, y);
+                        y += lineHeight;
+                    }
+
                     doc.save(filename);
                 } catch (e) { alert("Error: " + e.message); }
             } else {
