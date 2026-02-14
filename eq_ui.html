@@ -240,7 +240,7 @@
         window.activateVoiceOnMobile = function () {
             if (!isVoiceCallActive) return;
             const status = voiceStatus.innerText;
-            if (status !== "Listening..." && status !== "Thinking..." && !status.includes("Speaking")) {
+            if (status !== "Listening..." && status !== "..." && !status.includes("Speaking")) {
                 try { recognition.stop(); } catch (e) { }
                 window.speechSynthesis.cancel();
                 startListening();
@@ -250,6 +250,11 @@
         function startListening() {
             if (!recognition) return;
             try {
+                // Dynamic Language Selection
+                const selected = voiceSelect.selectedOptions[0];
+                const vId = selected ? selected.getAttribute('data-id') : 'male-premium';
+                recognition.lang = (vId === 'pidgin-premium') ? 'en-NG' : 'en-US';
+
                 if (window.speechSynthesis) {
                     window.speechSynthesis.pause();
                     window.speechSynthesis.resume();
@@ -285,7 +290,7 @@
             if (type === 'premium') {
                 // Server-Side Edge TTS
                 if (isVoiceCallActive || isTest) {
-                    if (!isTest) voiceStatus.innerText = "Generating Voice...";
+                    if (!isTest) voiceStatus.innerText = "...";
                     // Animation deferred until playback starts
                     if (!isTest) {
                         // Show what AI is saying in the transcript area
@@ -301,8 +306,13 @@
                     body: JSON.stringify({ text: textToSpeak, voice: voiceId })
                 })
 
-                    .then(response => {
-                        if (!response.ok) throw new Error('TTS Failed');
+                    .then(async response => {
+                        if (!response.ok) {
+                            try {
+                                const errData = await response.json();
+                                throw new Error(errData.error || 'TTS Failed');
+                            } catch (e) { throw new Error('TTS Failed'); }
+                        }
                         return response.blob();
                     })
                     .then(blob => {
@@ -337,8 +347,16 @@
                         currentAudio.play();
                     })
                     .catch(err => {
-                        console.error("Premium Voice Failed, falling back to system:", err);
-                        speakSystem(textToSpeak, onEndCallback, isTest);
+                        if (err.message && err.message.includes('Credit limit')) {
+                            alert("Credit limit passed come back 5hrs later");
+                            voiceStatus.innerText = "Quota Limit Reached";
+                            voiceVisualizer.style.opacity = '0.5';
+                            // Ensure no further processing
+                            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+                        } else {
+                            console.error("Premium Voice Failed, falling back to system:", err);
+                            speakSystem(textToSpeak, onEndCallback, isTest);
+                        }
                     });
             } else {
                 speakSystem(textToSpeak, onEndCallback, isTest);
@@ -472,7 +490,7 @@
                             // Trigger Send Logic
                             window.blockRestart = true;
                             recognition.stop();
-                            voiceStatus.innerText = "Thinking...";
+                            voiceStatus.innerText = "...";
                             handleSend();
                         }, 6000);
                     }

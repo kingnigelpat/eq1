@@ -453,11 +453,11 @@ def tts_generate():
                     return app.response_class(response.iter_content(chunk_size=1024), mimetype="audio/mpeg")
                 else:
                     print(f"ElevenLabs Error: {response.text}")
-                    # Fallback to Edge TTS if ElevenLabs fails
-                    mapped_voice = fallback_voice
+                    # Return specific error to frontend to trigger alert
+                    return jsonify({"error": "Credit limit passed. Come back 5hrs later.", "code": "QUOTA"}), 403
             except Exception as e:
                 print(f"ElevenLabs Exception: {e}")
-                mapped_voice = fallback_voice
+                return jsonify({"error": "Voice Service Error", "details": str(e)}), 500
         else:
             # No API Key provided, fallback immediately
             print("No ElevenLabs Key found")
@@ -480,10 +480,10 @@ def tts_generate():
         # Stream the file back to client
         def generate():
             with open(temp_path, "rb") as f:
-                data = f.read(1024)
+                data = f.read(4096)
                 while data:
                     yield data
-                    data = f.read(1024)
+                    data = f.read(4096)
             # Cleanup
             try:
                 os.remove(temp_path)
