@@ -2,14 +2,19 @@ import requests
 import time
 import sys
 
-BASE_URL = "http://localhost:5000"
+BASE_URL = "http://localhost:5001"
 
 def verify_auth():
     s = requests.Session()
     
     # 1. Try to access home without login (should redirect or fail)
     print("Testing access without login...")
-    r = s.get(BASE_URL)
+    try:
+        r = s.get(BASE_URL)
+    except requests.exceptions.ConnectionError:
+        print(f"FAILURE: Could not connect to {BASE_URL}. Is the server running?")
+        sys.exit(1)
+
     if "login" in r.url or r.status_code == 401 or r.status_code == 200:
         # Note: Flask-Login redirects to /login which returns 200 OK with the login page
         # We check if the content looks like the login page
@@ -22,9 +27,10 @@ def verify_auth():
     # 2. Signup
     username = f"testuser_{int(time.time())}"
     password = "password123"
-    print(f"\nSigning up as {username}...")
+    email = f"{username}@example.com"
+    print(f"\nSigning up as {username} with email {email}...")
     
-    r = s.post(f"{BASE_URL}/signup", data={"username": username, "password": password})
+    r = s.post(f"{BASE_URL}/signup", data={"username": username, "password": password, "email": email})
     if r.status_code == 200 and "EQ - Your Emotional Companion" in r.text:
         print("SUCCESS: Signup successful and redirected to home.")
     else:

@@ -6,22 +6,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome to EQ</title>
     <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
+    <link rel="stylesheet" href="/static/eq_style.css">
     <style>
         body {
+            /* Override eq_style.css defaults if needed */
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #000000;
-            color: #fff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
             text-align: center;
+            display: block;
+            /* eq_style sets flex column, which is fine, but we need formatting */
+            /* Ensure background is transparent so animation shows */
+            background: transparent;
         }
 
-        .container {
+        /* Ensure specific container styling for welcome page */
+        .welcome-content-container {
             max-width: 600px;
             padding: 2rem;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            /* Above overlay */
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
         .logo-image {
@@ -43,20 +52,6 @@
 
             100% {
                 transform: translateY(0px);
-            }
-        }
-
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
-            }
-
-            70% {
-                box-shadow: 0 0 0 20px rgba(212, 175, 55, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
             }
         }
 
@@ -122,18 +117,27 @@
             margin-left: auto;
             margin-right: auto;
         }
+
+        /* Main Call Button on Welcome specific logic provided previously logic was in eq_ui... 
+           Since this is a simple HTML page, we don't have JS here to start calls unless we link it.
+           But the user asked for "Voice chat with AI" text.
+        */
     </style>
 </head>
 
 <body>
-    <div class="container">
+    <!-- Background Animation (from eq_style.css) -->
+    <div class="bg-animation"></div>
+    <div class="bg-overlay"></div>
+
+    <div class="welcome-content-container">
         <!-- Rae Logo -->
         <img src="/static/RAE-removebg-preview.png" alt="RAE Logo" class="logo-image">
 
         <h1>EQ</h1>
         <p class="subtitle">
             Your emotional companion.<br>
-            Always here to listen, understand, and support you.
+            Voice chat with AI to express how you feel.
         </p>
 
         <div class="btn-group">

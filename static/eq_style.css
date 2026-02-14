@@ -12,12 +12,14 @@
     --primary-glow: rgba(212, 175, 55, 0.1);
     --bg-black: #000000;
     --bg-dark: #111111;
-    --bg-accent: #1a1a1a;
+    --bg-accent: rgba(26, 26, 26, 0.8);
     --text-white: #ffffff;
     --text-gray: #e0e0e0;
     --text-muted: #666666;
     --header-height: 60px;
+    /* Added standard spacing for visual consistency if needed, but relying on % is fine */
 }
+
 
 html,
 body {
@@ -26,8 +28,46 @@ body {
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background-color: var(--bg-black);
-    color: var(--text-white);
+    background-color: #000;
+}
+
+/* Background Animation Wrapper */
+.bg-animation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: url('/static/background_static.jpg') no-repeat center center;
+    background-size: cover;
+    animation: kenburns 20s ease-in-out infinite alternate;
+}
+
+.bg-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: rgba(0, 0, 0, 0.7);
+    /* Darken for readability */
+    backdrop-filter: blur(3px);
+}
+
+@keyframes kenburns {
+    0% {
+        transform: scale(1) translate(0, 0);
+    }
+
+    50% {
+        transform: scale(1.1) translate(-2%, 1%);
+    }
+
+    100% {
+        transform: scale(1) translate(2%, -1%);
+    }
 }
 
 body {
@@ -43,19 +83,17 @@ body {
     /* Dynamic viewport height for mobile */
     display: flex;
     flex-direction: column;
-    background-color: var(--bg-black);
-    max-width: 800px;
-    border-left: 1px solid rgba(255, 255, 255, 0.05);
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    flex-direction: column;
+    /* Removed background on container to let body show through */
+    background: transparent;
+    /* backdrop-filter: blur(5px); Moved to overlay */
+    max-width: 100%;
+    /* Make it full width always */
+    border: none;
     position: relative;
 }
 
-@media (max-width: 800px) {
-    .chat-container {
-        max-width: 100%;
-        border: none;
-    }
-}
+/* Removed media query since base style is now full width */
 
 .chat-header {
     flex-shrink: 0;
@@ -637,8 +675,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    justify-content: center;
-    margin-top: 0;
+    margin: 0;
     gap: 5px;
     flex-shrink: 0;
 }
@@ -705,29 +742,146 @@ body {
     }
 
     .chat-input-area {
-        padding: 15px 20px;
-        padding-bottom: max(20px, env(safe-area-inset-bottom));
+        padding: 10px 15px;
+        padding-bottom: max(15px, env(safe-area-inset-bottom));
+        gap: 10px;
+        flex-wrap: nowrap;
+        /* Prevent wrapping */
     }
 
     .input-wrapper {
-        padding: 12px 16px;
+        padding: 8px 12px;
+        min-width: 0;
+        flex: 1;
+        /* Ensure it takes available space */
+    }
+
+    .voice-call-wrapper {
+        margin: 0;
+        margin-left: 5px;
+        display: flex;
+        align-items: center;
+        width: auto;
+        min-width: 44px;
+        /* Slightly smaller min-width */
+        flex-shrink: 0;
     }
 
     .voice-call-btn {
-        width: 64px;
-        /* Big thumb target */
-        height: 64px;
+        width: 50px;
+        height: 50px;
         margin-bottom: 0;
     }
 
     .voice-call-btn svg {
-        width: 32px;
-        height: 32px;
+        width: 24px;
+        height: 24px;
     }
 
     .voice-call-label {
-        font-size: 0.8rem;
-        margin-bottom: 20px;
-        /* Space from bottom edge */
+        display: none;
+        /* Ensure label is definitely gone */
+    }
+}
+
+/* Main Call Button (Welcome Screen) */
+.main-call-btn {
+    margin-top: 30px;
+    padding: 15px 30px;
+    background: linear-gradient(135deg, var(--primary), #AA8C2C);
+    border: none;
+    border-radius: 50px;
+    color: #000;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
+    transition: all 0.3s ease;
+    animation: fadeIn 1s ease-out 0.5s backwards;
+}
+
+.main-call-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 25px rgba(212, 175, 55, 0.6);
+}
+
+.main-call-btn:active {
+    transform: translateY(1px);
+}
+
+.main-call-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+/* Floating Action Button (FAB) */
+.fab-call-btn {
+    position: absolute;
+    /* Changed from fixed to absolute to stay within container */
+    /* Changed from fixed to absolute to stay within container */
+    bottom: 90px;
+    /* Adjusted bottom position to clear input area */
+    right: 20px;
+    /* Adjusted right position inside container */
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: none;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    /* Ensure nothing spills out */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 900;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    opacity: 0;
+    transform: scale(0);
+    pointer-events: none;
+}
+
+.fab-call-btn.visible {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: all;
+}
+
+.fab-call-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+}
+
+.fab-call-btn.pulse {
+    animation: pulse-gold 2s infinite;
+}
+
+.fab-call-btn svg {
+    width: 28px;
+    height: 28px;
+    fill: #000;
+}
+
+/* Make Welcome container take full height properly */
+.welcome-container {
+    height: 100%;
+    /* Ensure it centers vertically in the view */
+}
+
+/* Mobile Adjustments */
+@media (max-width: 600px) {
+    .main-call-btn {
+        width: 80%;
+        justify-content: center;
+    }
+
+    .fab-call-btn {
+        bottom: 90px;
+        right: 15px;
     }
 }

@@ -12,11 +12,14 @@
 </head>
 
 <body>
+    <div class="bg-animation"></div>
+    <div class="bg-overlay"></div>
     <div class="chat-container">
         <header class="chat-header">
             <span class="logo-text">EQ</span>
             <div style="display:flex; gap:15px; align-items:center;">
-                <!-- Logout removed -->
+
+                <a href="/logout" class="logout-link" onclick="localStorage.removeItem('eq_user_id');">Logout</a>
             </div>
         </header>
 
@@ -24,6 +27,13 @@
             <div class="welcome-container" id="welcomeScreen">
                 <div class="welcome-title">Hello, {{ username }}</div>
                 <div class="welcome-subtitle">I'm EQ. How are you feeling today?</div>
+                <button class="main-call-btn" onclick="startVoiceCall()">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" />
+                    </svg>
+                    Start Voice Chat
+                </button>
             </div>
         </div>
 
@@ -64,17 +74,17 @@
                     </svg>
                 </button>
             </div>
-            <div class="voice-call-wrapper">
-                <button class="voice-call-btn" id="voiceCallBtn" title="Start Voice Call">
-                    <svg viewBox="0 0 24 24">
-                        <path
-                            d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" />
-                    </svg>
-                </button>
-
-            </div>
+            <!-- Removed Voice Call Wrapper from here -->
         </div>
     </div>
+
+    <!-- Voice Overlay -->
+    <button id="fabCallBtn" class="fab-call-btn" title="Start Voice Call" onclick="startVoiceCall()">
+        <svg viewBox="0 0 24 24">
+            <path
+                d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" />
+        </svg>
+    </button>
 
     <!-- Voice Overlay -->
     <div class="voice-overlay" id="voiceOverlay">
@@ -135,6 +145,8 @@
         let voices = [];
         let recognition = null;
         let currentAudio = null;
+        let silenceTimer = null; // Timer for auto-send
+        let typingInterval = null; // Timer for text typing effect
         let isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         // --- Elements ---
@@ -153,7 +165,7 @@
         const voiceSettingsPanel = document.getElementById('voiceSettingsPanel');
         const rateValueDisplay = document.getElementById('rateValue');
         const pitchValueDisplay = document.getElementById('pitchValue');
-        const voiceCallBtn = document.getElementById('voiceCallBtn');
+        // const voiceCallBtn = document.getElementById('voiceCallBtn');
         const voiceOverlay = document.getElementById('voiceOverlay');
         const voiceStatus = document.getElementById('voiceStatus');
         const voiceVisualizer = document.getElementById('voiceVisualizer');
@@ -163,7 +175,8 @@
         // --- Voice Logic ---
         const voiceOptions = [
             { name: "EQ (Male)", id: "male-premium", type: "premium" },
-            { name: "EQ (Female)", id: "female-premium", type: "premium" }
+            { name: "EQ (Female)", id: "female-premium", type: "premium" },
+            { name: "EQ (Pidgin)", id: "pidgin-premium", type: "premium" }
         ];
 
         function populateVoiceList() {
@@ -258,7 +271,10 @@
             // Visualizer Reset
             voiceVisualizer.classList.remove('speaking');
 
-            const textToSpeak = text.replace(/[*#`_]/g, '')
+            // Regex to remove emojis (most common ranges)
+            const noEmojiText = text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+
+            const textToSpeak = noEmojiText.replace(/[*#`_]/g, '')
                 .replace(/!\[.*?\]\(.*?\)/g, ' I have generated an image. ')
                 .replace(/\[DOWNLOAD:.*?\]/g, ' File ready. ');
 
@@ -272,6 +288,8 @@
                     if (!isTest) voiceStatus.innerText = "Generating Voice...";
                     // Animation deferred until playback starts
                     if (!isTest) {
+                        // Show what AI is saying in the transcript area
+                        // voiceTranscript.innerText = text; // Disabled for typing effect
                         voiceTranscript.innerText = "";
                         voiceSendBtn.style.display = 'none';
                     }
@@ -282,6 +300,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: textToSpeak, voice: voiceId })
                 })
+
                     .then(response => {
                         if (!response.ok) throw new Error('TTS Failed');
                         return response.blob();
@@ -294,7 +313,12 @@
                         currentAudio.onplay = () => {
                             if (isVoiceCallActive || isTest) {
                                 voiceVisualizer.classList.add('speaking');
-                                if (!isTest) voiceStatus.innerText = "EQ Speaking...";
+                                if (!isTest) {
+                                    voiceStatus.innerText = "EQ Speaking...";
+                                    // Start synced typing
+                                    const duration = currentAudio.duration && isFinite(currentAudio.duration) ? currentAudio.duration : (text.length * 0.06);
+                                    startTypingEffect(text, duration);
+                                }
                             }
                         };
 
@@ -352,7 +376,7 @@
                     if (!isTest) voiceStatus.innerText = "EQ Speaking...";
                     voiceVisualizer.classList.add('speaking');
                     if (!isTest) {
-                        voiceTranscript.innerText = "";
+                        voiceTranscript.innerText = text;  // Show text on screen
                         voiceSendBtn.style.display = 'none';
                     }
                 }
@@ -432,9 +456,22 @@
                 for (let i = 0; i < event.results.length; i++) {
                     fullTranscript += event.results[i][0].transcript;
                 }
+
                 if (isVoiceCallActive) {
                     voiceTranscript.innerText = fullTranscript;
                     userInput.value = fullTranscript;
+
+                    // Auto-Send on Silence (increased to 6s to prevent premature sending)
+                    clearTimeout(silenceTimer);
+                    if (fullTranscript.trim().length > 0) {
+                        silenceTimer = setTimeout(() => {
+                            // Trigger Send Logic
+                            window.blockRestart = true;
+                            recognition.stop();
+                            voiceStatus.innerText = "Thinking...";
+                            handleSend();
+                        }, 6000);
+                    }
                 } else {
                     userInput.value = fullTranscript;
                 }
@@ -450,12 +487,19 @@
                 }
             });
 
-            voiceCallBtn.addEventListener('click', startVoiceCall);
+            // voiceCallBtn.addEventListener('click', startVoiceCall);
+
+            // Expose globally for the main button
+            window.startVoiceCall = startVoiceCall;
 
             function startVoiceCall() {
                 isVoiceCallActive = true;
                 window.blockRestart = false;
                 voiceOverlay.classList.add('active');
+
+                // Hide FAB when call starts
+                const fab = document.getElementById('fabCallBtn');
+                if (fab) fab.classList.remove('visible');
 
                 // iOS Wakeup
                 if (window.speechSynthesis) {
@@ -485,14 +529,19 @@
             window.endVoiceCall = function () {
                 isVoiceCallActive = false;
                 window.blockRestart = true;
+                clearTimeout(silenceTimer); // Clear timer
+                clearInterval(typingInterval); // Clear typing effect
                 voiceOverlay.classList.remove('active');
+
+                // Show FAB when call ends
+                const fab = document.getElementById('fabCallBtn');
+                if (fab) fab.classList.add('visible');
                 if (recognition) recognition.abort();
                 window.speechSynthesis.cancel();
             };
 
         } else {
             micBtn.style.display = 'none';
-            voiceCallBtn.style.display = 'none';
         }
 
         // --- Chat Logic ---
@@ -609,6 +658,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: prompt, user_id: userId })
                 });
+
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+
                 const data = await res.json();
 
                 if (typingIndicator.parentNode) chatMessages.removeChild(typingIndicator);
@@ -631,7 +685,8 @@
                 }
             } catch (error) {
                 if (typingIndicator.parentNode) chatMessages.removeChild(typingIndicator);
-                addEQMessage("Hey — I'm having trouble connecting to the cloud right now ☁️ Please try again in a moment.");
+                console.error("Chat Error:", error);
+                addEQMessage("Hey — I'm having trouble connecting to the cloud right now ☁️ (" + error.message + ")");
             }
         }
 
@@ -697,9 +752,37 @@
         };
 
         // --- Init ---
-        window.addEventListener('load', populateVoiceList);
+        window.addEventListener('load', () => {
+            populateVoiceList();
+            // Show FAB on load
+            const fab = document.getElementById('fabCallBtn');
+            if (fab) setTimeout(() => fab.classList.add('visible'), 1000);
+        });
         // Fallback safety
         setTimeout(populateVoiceList, 1000);
+
+        function startTypingEffect(text, durationSeconds) {
+            if (!voiceTranscript) return;
+            voiceTranscript.innerText = "";
+            clearInterval(typingInterval);
+
+            // Calculate delay per char
+            // Ensure reasonable minimum duration logic
+            const safeDuration = durationSeconds > 0 ? durationSeconds : 3;
+            const totalTime = safeDuration * 1000;
+            const charDelay = totalTime / text.length;
+
+            let i = 0;
+            typingInterval = setInterval(() => {
+                if (i < text.length) {
+                    voiceTranscript.textContent += text.charAt(i);
+                    i++;
+                    voiceTranscript.scrollTop = voiceTranscript.scrollHeight;
+                } else {
+                    clearInterval(typingInterval);
+                }
+            }, charDelay);
+        }
 
     </script>
 </body>

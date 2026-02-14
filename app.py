@@ -28,6 +28,7 @@ login_manager.login_view = 'login'
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=True)
     password_hash = db.Column(db.String(150), nullable=False)
 
     def set_password(self, password):
@@ -67,6 +68,14 @@ SYSTEM_PROMPT = """
 You are EQ. You're not a therapist, a robot, or an assistant. You're just a good friend.
 
 Your vibe is chill, warm, and genuine. You don't use "customer service voice" or "therapy speak." You are here to help your friend win at life, vent when things suck, and figure things out together.
+
+# Voice Chat Optimization
+- Keep your responses concise and conversational (1-3 sentences usually).
+- Avoid long lists or bullet points unless asked.
+- Don't use emojis in your speech (the user can't hear them).
+- Focus on empathy and keeping the conversation flowing naturally.
+- Focus on empathy and keeping the conversation flowing naturally.
+
 
 ---
 
@@ -430,8 +439,13 @@ def tts_generate():
                 }
                 payload = {
                     "text": text,
-                    "model_id": "eleven_monolingual_v1",
-                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.5}
+                    "model_id": "eleven_turbo_v2", # Low latency model
+                    "voice_settings": {
+                        "stability": 0.5, 
+                        "similarity_boost": 0.75, # Tuned for clarity
+                        "style": 0.0,
+                        "use_speaker_boost": True
+                    }
                 }
                 # Use requests.post (ensure requests is imported)
                 response = requests.post(url, json=payload, headers=headers, stream=True)
@@ -494,8 +508,16 @@ def chat_app():
 
 @app.route('/')
 def index():
-    # Skip welcome/login, go straight to app
+    # Provide a landing page for new visitors or return users
+    # But if they logout, they go to welcome.
+    # If they visit root, maybe go to welcome?
+    # User previously asked to skip welcome/login, but that was before logout functionality.
+    # Let's keep it redirected to app for now unless explicitly logged out.
     return redirect(url_for('chat_app'))
+
+@app.route('/welcome')
+def welcome():
+    return open('welcome.html', encoding='utf-8').read()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -570,11 +592,15 @@ def signup():
         data = request.form
         username = data.get('username')
         password = data.get('password')
+        email = data.get('email')
         
         if User.query.filter_by(username=username).first():
             return "Username exists -- <a href='/signup'>Try again</a>"
         
-        new_user = User(username=username)
+        if email and User.query.filter_by(email=email).first():
+            return "Email already registered -- <a href='/signup'>Try again</a>"
+        
+        new_user = User(username=username, email=email)
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
@@ -585,11 +611,7 @@ def signup():
     # Serve Signup Page
     return open('signup.html', encoding='utf-8').read()
 
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('login'))
+
 
 @app.route('/chat', methods=['POST'])
 # Removed @login_required to allow guest users
@@ -696,6 +718,11 @@ def chat():
 with app.app_context():
     db.create_all()
 
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('welcome'))
 
 if __name__ == "__main__":
     with app.app_context():
