@@ -1,0 +1,10 @@
+workers = 2
+threads = 4
+bind = "127.0.0.1:8000"
+worker_class = "gthread"
+timeout = 120
+forwarded_allow_ips = "*"
+proxy_allow_ips = "*"
+loglevel = "info"
+accesslog = "-"
+errorlog = "-"

@@ -325,7 +325,11 @@
                         currentAudio.onended = () => {
                             voiceVisualizer.classList.remove('speaking');
                             if (isVoiceCallActive && !isTest) {
-                                voiceStatus.innerText = "Tap circle to speak"; // Reset status
+                                voiceStatus.innerText = "Listening...";
+                                try { recognition.start(); } catch (e) {
+                                    console.log("Auto-restart mic failed:", e);
+                                    voiceStatus.innerText = "Tap circle to speak";
+                                }
                             }
                             if (onEndCallback) onEndCallback();
                         };
@@ -435,19 +439,19 @@
                 micBtn.classList.remove('recording');
                 userInput.placeholder = "Message EQ...";
                 if (isVoiceCallActive && !window.blockRestart) {
-                    if (isMobile) {
-                        voiceStatus.innerText = "Tap circle to speak";
-                        voiceVisualizer.style.opacity = '0.5';
-                    } else {
-                        setTimeout(() => {
-                            if (isVoiceCallActive && !window.speechSynthesis.speaking) {
-                                try { recognition.start(); } catch (e) {
-                                    voiceStatus.innerText = "Tap circle to speak";
-                                    voiceVisualizer.style.opacity = '0.5';
-                                }
+                    setTimeout(() => {
+                        // Check both System and Premium audio status
+                        const isSystemSpeaking = window.speechSynthesis.speaking;
+                        const isPremiumSpeaking = currentAudio && !currentAudio.paused;
+
+                        if (isVoiceCallActive && !isSystemSpeaking && !isPremiumSpeaking) {
+                            try { recognition.start(); } catch (e) {
+                                console.log("Restart error:", e);
+                                voiceStatus.innerText = "Tap circle to speak";
+                                voiceVisualizer.style.opacity = '0.5';
                             }
-                        }, 300);
-                    }
+                        }
+                    }, 300);
                 }
             };
 
