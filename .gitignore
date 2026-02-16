@@ -5,4 +5,5 @@ instance/
 .venv/
 users.db
 *.log
+venv/
 .DS_Store
