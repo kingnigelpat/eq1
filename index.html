@@ -174,9 +174,9 @@
 
         // --- Voice Logic ---
         const voiceOptions = [
-            { name: "EQ (Male)", id: "male-premium", type: "premium" },
-            { name: "EQ (Female)", id: "female-premium", type: "premium" },
-            { name: "EQ (Pidgin)", id: "pidgin-premium", type: "premium" }
+            { name: "Male", id: "male-premium", type: "premium" },
+            { name: "Female", id: "female-premium", type: "premium" },
+            { name: "Pidgin", id: "pidgin-premium", type: "premium" }
         ];
 
         function populateVoiceList() {
@@ -219,6 +219,13 @@
             const id = type === 'premium' ? selectedOption.getAttribute('data-id') : selectedOption.getAttribute('data-name');
             localStorage.setItem('eq_selected_voice_id', id);
             updateVoiceControls();
+
+            // Restart listening to apply new language immediately
+            if (isVoiceCallActive && recognition) {
+                try { recognition.stop(); } catch (e) { }
+                voiceStatus.innerText = "Switching language...";
+                setTimeout(startListening, 800);
+            }
         });
 
         rateRange.addEventListener('input', () => { rateValueDisplay.innerText = rateRange.value; });
@@ -260,7 +267,8 @@
                     window.speechSynthesis.resume();
                 }
                 recognition.start();
-                voiceStatus.innerText = "Listening...";
+                const langLabel = (recognition.lang === 'en-NG') ? " (Pidgin)" : "";
+                voiceStatus.innerText = "Listening" + langLabel + "...";
                 voiceVisualizer.style.opacity = '1';
                 voiceSendBtn.style.display = 'flex';
                 voiceVisualizer.classList.remove('speaking');
@@ -336,10 +344,6 @@
                             voiceVisualizer.classList.remove('speaking');
                             if (isVoiceCallActive && !isTest) {
                                 voiceStatus.innerText = "Listening...";
-                                try { recognition.start(); } catch (e) {
-                                    console.log("Auto-restart mic failed:", e);
-                                    voiceStatus.innerText = "Tap circle to speak";
-                                }
                             }
                             if (onEndCallback) onEndCallback();
                         };
@@ -675,10 +679,17 @@
                     userId = 'guest_' + Math.random().toString(36).substr(2, 9);
                     localStorage.setItem('eq_user_id', userId);
                 }
+                const selectedOption = voiceSelect.selectedOptions[0];
+                const currentVoiceId = selectedOption ? selectedOption.getAttribute('data-id') : 'male-premium';
+
                 const res = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: prompt, user_id: userId })
+                    body: JSON.stringify({
+                        message: prompt,
+                        user_id: userId,
+                        voice_id: currentVoiceId  // Send voice ID to sync language
+                    })
                 });
 
                 if (!res.ok) {
@@ -696,12 +707,7 @@
                     speak(data.response, () => {
                         if (isVoiceCallActive) {
                             window.blockRestart = false;
-                            if (!isMobile) {
-                                try { startListening(); } catch (e) { }
-                            } else {
-                                voiceStatus.innerText = "Tap circle to speak";
-                                voiceVisualizer.style.opacity = '0.5';
-                            }
+                            try { startListening(); } catch (e) { }
                         }
                     });
                 }

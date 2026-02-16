@@ -22,7 +22,7 @@ CORS(app)  # Enable CORS
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'signup'
 
 # User Model
 class User(UserMixin, db.Model):
@@ -62,6 +62,8 @@ load_dotenv()
 
 # Your OpenRouter API key
 API_KEY = os.getenv("OPENROUTER_API_KEY")
+if not API_KEY:
+    print("WARNING: OPENROUTER_API_KEY is not set in environment or .env file.")
 URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = """
@@ -339,6 +341,8 @@ def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo")
             return cleaned_text
         return None
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"AI Error: {e}")
         return None
 
@@ -367,9 +371,9 @@ def detect_emotion(text):
 # --- QUOTA MANAGEMENT ---
 DAILY_USAGE = {} # { 'user_id': { 'date': 'YYYY-MM-DD', 'messages': 0, 'images': 0, 'files': 0 } }
 DAILY_LIMITS = {
-    'messages': 15,
-    'images': 2,
-    'files': 2
+    'messages': 50,
+    'images': 10,
+    'files': 5
 }
 
 def get_today_str():
@@ -405,10 +409,11 @@ import asyncio
 import tempfile
 
 PREMIUM_VOICES = {
-    # Standard Free Voices
-    'male-premium': 'eleven_QIhD5ivPGEoYZQDocuHI', # Finn - User Requested
-    'female-premium': 'eleven_21m00Tcm4TlvDq8ikWAM', # Rachel
-    # 'male-premium': 'eleven_pNInz6obpgDQGcFmaJgB', # Adam (Backup)
+    # Standard Free Voices (Edge TTS) - Saves your $4!
+    'male-premium': 'en-US-ChristopherNeural', # Free High Quality Male
+    'female-premium': 'en-US-AriaNeural',      # Free High Quality Female
+    # 'male-premium': 'eleven_QIhD5ivPGEoYZQDocuHI', # ElevenLabs (expensive)
+    # 'female-premium': 'eleven_21m00Tcm4TlvDq8ikWAM', # ElevenLabs (expensive)
     'pidgin-premium': 'en-NG-AbeoNeural'  # Edge TTS
 }
 
@@ -499,11 +504,11 @@ def tts_generate():
 # --- Routes ---
 
 @app.route('/app')
-# @login_required  <-- Removed for guest access
+@login_required 
 def chat_app():
     # Inject username into the UI
-    username = current_user.username if current_user.is_authenticated else "Friend"
-    content = open('eq_ui.html', encoding='utf-8').read()
+    username = current_user.username
+    content = open('index.html', encoding='utf-8').read()
     return render_template_string(content, username=username)
 
 @app.route('/')
@@ -549,7 +554,7 @@ def upload_file():
     
     # Check File Quota
     if user_identifier and not check_quota(user_identifier, 'files'):
-        return jsonify({"error": "Time out! Upgrade to Premium or try again tomorrow. 📂"}), 403
+        return jsonify({"error": "Daily file limit reached. Try again tomorrow. 📂"}), 403
 
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -641,17 +646,26 @@ def chat():
     if not is_premium_quota:
         # Switched to cheaper model
         current_model = "meta-llama/llama-3-8b-instruct:free"
-        alert_msg = "Switched to a cheaper one."
+        alert_msg = "Daily limit reached. Switched to basic model."
         
     # 2.5 Rate Limiting Logic (Spam Protection)
     if is_rate_limited(user_identifier):
         return jsonify({"response": "Whoa, take a deep breath! We're moving a bit fast. Give me a moment to catch up. 🌿"})
 
-    # 3. Language Preference Detection
+    # 3. Language Preference Sync
+    # If the user has selected the Pidgin VOICE, automatically switch language mode to Pidgin.
+    selected_voice_id = data.get('voice_id')
     lower_input = user_input.lower()
-    if "pidgin" in lower_input and ("speak" in lower_input or "switch" in lower_input or "use" in lower_input):
+    
+    if selected_voice_id == 'pidgin-premium':
         USER_LANGUAGES[user_identifier] = 'pidgin'
-    elif "english" in lower_input and ("speak" in lower_input or "switch" in lower_input or "use" in lower_input):
+    elif selected_voice_id and 'premium' in selected_voice_id: # Any other premium/standard voice
+        USER_LANGUAGES[user_identifier] = 'english'
+
+    # Manual Override (takes precedence if user explicitly asks in this message)
+    if "speak pidgin" in lower_input or "switch to pidgin" in lower_input:
+        USER_LANGUAGES[user_identifier] = 'pidgin'
+    elif "speak english" in lower_input or "switch to english" in lower_input:
         USER_LANGUAGES[user_identifier] = 'english'
 
     # 4. Secure AI Response Logic (Per User)
@@ -664,8 +678,6 @@ def chat():
         keywords = ["generate image", "create image", "draw", "picture of"]
         if any(k in lower_input for k in keywords):
              # Early friendly rejection or let AI handle it with context
-             # Let's just tell them directly to save API call?
-             # Actually, better to let AI explain politely.
              pass 
 
     # We need to pass quota info to get_ai_response if we want AI to know
@@ -695,7 +707,7 @@ def chat():
                 # "Image generation limit reached."
                 # Regex replace?
                 import re
-                ai_response = re.sub(r'!\[.*?\]\(.*?\)', '(Image Limit Reached 🚫)', ai_response)
+                ai_response = re.sub(r'!\[.*?\]\(.*?\)', '(Daily Image Limit Reached 🚫)', ai_response)
 
         response = ai_response
     else:
