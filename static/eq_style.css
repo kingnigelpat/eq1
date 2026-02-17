@@ -246,6 +246,83 @@ body {
     /* Hacker terminal green for code */
 }
 
+.user-message {
+    position: relative;
+    padding-right: 35px;
+    /* Make space for edit button */
+}
+
+.edit-btn {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    font-size: 1rem;
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s;
+    padding: 5px;
+}
+
+.user-message:hover .edit-btn {
+    opacity: 1;
+}
+
+.edit-btn:hover {
+    color: var(--primary);
+}
+
+/* Edit Mode Styles */
+.edit-container {
+    width: 100%;
+}
+
+.edit-textarea {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white;
+    padding: 8px;
+    font-size: 0.95rem;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+    margin-bottom: 8px;
+}
+
+.edit-textarea:focus {
+    border-color: var(--primary);
+}
+
+.edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.edit-actions button {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: none;
+    font-weight: 500;
+}
+
+.save-btn {
+    background: var(--primary);
+    color: black;
+}
+
+.cancel-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
 /* Animations */
 @keyframes fadeIn {
     from {
@@ -480,8 +557,15 @@ body {
     box-shadow: none;
 }
 
-.voice-visualizer.speaking svg {
-    opacity: 0;
+.voice-visualizer.muted {
+    background: transparent;
+    border: 2px solid #ff4444;
+    box-shadow: 0 0 15px rgba(255, 68, 68, 0.2);
+    opacity: 0.5;
+}
+
+.voice-visualizer.muted svg {
+    fill: #ff4444;
 }
 
 /* Waveform Bars */
@@ -597,6 +681,51 @@ body {
     font-size: 1.5rem;
     cursor: pointer;
     z-index: 1001;
+}
+
+.mute-voice-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    z-index: 1001;
+    transition: all 0.2s;
+}
+
+.mute-voice-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-white);
+}
+
+.mute-voice-btn.muted {
+    background-color: rgba(255, 68, 68, 0.2);
+    border-color: #ff4444;
+    color: #ff4444;
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+    }
 }
 
 .voice-settings-panel {
@@ -781,6 +910,32 @@ body {
     .voice-call-label {
         display: none;
         /* Ensure label is definitely gone */
+    }
+
+    /* Mobile: Always show edit button since hover doesn't exist */
+    .edit-btn {
+        opacity: 0.6;
+        padding: 10px;
+        /* Larger touch target */
+    }
+
+    .user-message {
+        padding-right: 40px;
+        /* Ensure text doesn't overlap button */
+    }
+
+    .edit-btn:active {
+        opacity: 1;
+        transform: translateY(-50%) scale(0.9);
+    }
+
+    /* Mobile: Adjust voice settings panel */
+    .voice-settings-panel {
+        right: 10px;
+        left: 10px;
+        /* Full width minus margins */
+        width: auto;
+        top: 70px;
     }
 }
 

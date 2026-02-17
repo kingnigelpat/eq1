@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
 # Config
-app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -527,20 +527,25 @@ def welcome():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        data = request.form
+        # Support both JSON (fetch) and Form Data (fallback)
+        if request.is_json:
+            data = request.json
+        else:
+            data = request.form
+            
         username = data.get('username')
         password = data.get('password')
         user = User.query.filter_by(username=username).first()
         
         if not user:
-            # User doesn't exist, redirect to signup
-            return redirect(url_for('signup'))
+            return jsonify({"success": False, "message": "User does not exist."}), 401
             
         if not user.check_password(password):
-            return "Incorrect password -- <a href='/login'>Try again</a>"
+            return jsonify({"success": False, "message": "Incorrect password."}), 401
 
         login_user(user)
-        return redirect(url_for('chat_app'))
+        return jsonify({"success": True, "redirect": url_for('chat_app')})
+
     # Serve Login Page
     return open('login.html', encoding='utf-8').read()
 
@@ -594,16 +599,20 @@ def upload_file():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        data = request.form
+        if request.is_json:
+            data = request.json
+        else:
+            data = request.form
+
         username = data.get('username')
         password = data.get('password')
         email = data.get('email')
         
         if User.query.filter_by(username=username).first():
-            return "Username exists -- <a href='/signup'>Try again</a>"
+            return jsonify({"success": False, "message": "Username already exists."}), 409
         
         if email and User.query.filter_by(email=email).first():
-            return "Email already registered -- <a href='/signup'>Try again</a>"
+            return jsonify({"success": False, "message": "Email already registered."}), 409
         
         new_user = User(username=username, email=email)
         new_user.set_password(password)
@@ -611,7 +620,7 @@ def signup():
         db.session.commit()
         
         login_user(new_user)
-        return redirect(url_for('chat_app'))
+        return jsonify({"success": True, "redirect": url_for('chat_app')})
     
     # Serve Signup Page
     return open('signup.html', encoding='utf-8').read()
@@ -739,4 +748,4 @@ def logout():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True, port=5001)
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'False') == 'True', port=int(os.environ.get('PORT', 5001)))

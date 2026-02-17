@@ -9,6 +9,54 @@
     <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
     <link rel="stylesheet" href="/static/eq_style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* Enhanced Welcome Screen Styles */
+        .welcome-glass {
+            background: rgba(20, 20, 20, 0.4);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            padding: 3rem;
+            max-width: 90%;
+            width: 400px;
+            margin: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease;
+        }
+
+        .welcome-avatar {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.2), #000);
+            border: 2px solid rgba(212, 175, 55, 0.5);
+            border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #D4AF37;
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.2);
+            animation: pulse-glow 3s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+                transform: scale(1);
+            }
+
+            50% {
+                box-shadow: 0 0 60px rgba(212, 175, 55, 0.4);
+                transform: scale(1.05);
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -25,15 +73,18 @@
 
         <div class="chat-messages" id="chat-messages">
             <div class="welcome-container" id="welcomeScreen">
-                <div class="welcome-title">Hello, {{ username }}</div>
-                <div class="welcome-subtitle">I'm EQ. How are you feeling today?</div>
-                <button class="main-call-btn" onclick="startVoiceCall()">
-                    <svg viewBox="0 0 24 24">
-                        <path
-                            d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" />
-                    </svg>
-                    Start Voice Chat
-                </button>
+                <div class="welcome-glass">
+                    <div class="welcome-avatar">EQ</div>
+                    <div class="welcome-title">Hello, {{ username }}</div>
+                    <div class="welcome-subtitle">I'm EQ. Your personal companion. How are you feeling today?</div>
+                    <button class="main-call-btn" onclick="startVoiceCall()" style="margin: 2rem auto 0;">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" />
+                        </svg>
+                        Start Voice Chat
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -88,6 +139,13 @@
 
     <!-- Voice Overlay -->
     <div class="voice-overlay" id="voiceOverlay">
+        <button class="mute-voice-btn" id="muteBtn" onclick="toggleMute()" title="Mute Microphone">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                <path
+                    d="M17 11c0 3.01-2.44 5.5-5.5 5.5S6 14.01 6 11H4c0 3.53 2.61 6.43 6 6.92V21h4v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+            </svg>
+        </button>
         <button class="voice-settings-btn" onclick="toggleVoiceSettings()">⚙️</button>
 
         <div class="voice-settings-panel" id="voiceSettingsPanel">
@@ -147,6 +205,8 @@
         let currentAudio = null;
         let silenceTimer = null; // Timer for auto-send
         let typingInterval = null; // Timer for text typing effect
+        let isMuted = false;
+        let savedTranscript = "";
         let isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         // --- Elements ---
@@ -244,6 +304,35 @@
             speak("This is how I sound.", null, true);
         };
 
+        window.toggleMute = function () {
+            isMuted = !isMuted;
+            const btn = document.getElementById('muteBtn');
+            const visualizer = document.getElementById('voiceVisualizer');
+
+            if (isMuted) {
+                // MUTE ON
+                clearTimeout(silenceTimer); // Stop auto-send
+                savedTranscript = userInput.value.trim(); // Save what we have so far
+                btn.classList.add('muted');
+                visualizer.classList.add('muted'); // Add visual feedback to center circle
+                // Change Icon to Muted
+                btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l2.97 2.97c-.85.35-1.76.57-2.73.57-3.01 0-5.5-2.45-5.5-5.5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c.57-.08 1.12-.24 1.64-.46L19.73 22 21 20.73 4.27 3z"/></svg>`;
+                voiceStatus.innerText = "Muted";
+                voiceVisualizer.style.opacity = '0.3';
+                if (recognition) recognition.stop();
+            } else {
+                // MUTE OFF
+                btn.classList.remove('muted');
+                visualizer.classList.remove('muted');
+                // Change Icon to Unmuted
+                btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 3.01-2.44 5.5-5.5 5.5S6 14.01 6 11H4c0 3.53 2.61 6.43 6 6.92V21h4v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>`;
+                voiceStatus.innerText = "Resuming...";
+                voiceVisualizer.style.opacity = '1';
+                // Small delay and resume
+                setTimeout(startListening, 300);
+            }
+        };
+
         window.activateVoiceOnMobile = function () {
             if (!isVoiceCallActive) return;
             const status = voiceStatus.innerText;
@@ -257,6 +346,8 @@
         function startListening() {
             if (!recognition) return;
             try {
+                if (isMuted) return; // Do not start if muted
+
                 // Dynamic Language Selection
                 const selected = voiceSelect.selectedOptions[0];
                 const vId = selected ? selected.getAttribute('data-id') : 'male-premium';
@@ -436,7 +527,7 @@
             recognition.onstart = () => {
                 if (isVoiceCallActive) {
                     voiceStatus.innerText = "Listening...";
-                    voiceTranscript.innerText = "";
+                    voiceTranscript.innerText = savedTranscript || ""; // Restore text if any
                     voiceSendBtn.style.display = 'flex';
                     voiceSendBtn.style.opacity = '1';
                 } else {
@@ -466,11 +557,13 @@
                         const isSystemSpeaking = window.speechSynthesis.speaking;
                         const isPremiumSpeaking = currentAudio && !currentAudio.paused;
 
-                        if (isVoiceCallActive && !isSystemSpeaking && !isPremiumSpeaking) {
+                        if (isVoiceCallActive && !isSystemSpeaking && !isPremiumSpeaking && !isMuted) {
                             try { recognition.start(); } catch (e) {
                                 console.log("Restart error:", e);
-                                voiceStatus.innerText = "Tap circle to speak";
-                                voiceVisualizer.style.opacity = '0.5';
+                                if (!isMuted) {
+                                    voiceStatus.innerText = "Tap circle to speak";
+                                    voiceVisualizer.style.opacity = '0.5';
+                                }
                             }
                         }
                     }, 300);
@@ -484,12 +577,17 @@
                 }
 
                 if (isVoiceCallActive) {
-                    voiceTranscript.innerText = fullTranscript;
-                    userInput.value = fullTranscript;
+                    // Combine saved transcript (from before mute) with new transcript
+                    const combinedText = (savedTranscript ? savedTranscript + ' ' : '') + fullTranscript;
 
-                    // Auto-Send on Silence (increased to 6s to prevent premature sending)
+                    voiceTranscript.innerText = combinedText;
+                    userInput.value = combinedText;
+
+                    // Auto-Send on Silence (but only if we have NEW input in this session or combined len grew)
                     clearTimeout(silenceTimer);
-                    if (fullTranscript.trim().length > 0) {
+
+                    // Only start timer if we are NOT muted (redundant check but safe)
+                    if (!isMuted && fullTranscript.trim().length > 0) {
                         silenceTimer = setTimeout(() => {
                             // Trigger Send Logic
                             window.blockRestart = true;
@@ -538,6 +636,7 @@
                 if (recognition && recognition.abort) recognition.abort();
                 setTimeout(() => {
                     userInput.value = '';
+                    savedTranscript = ''; // Reset saved text on new call
                     startListening();
                 }, 500);
             }
@@ -548,6 +647,7 @@
                 if (!text) return;
                 window.blockRestart = true;
                 recognition.stop();
+                savedTranscript = ''; // Clear saved since we sent it
                 voiceStatus.innerText = "Thinking...";
                 handleSend();
             });
@@ -555,6 +655,18 @@
             window.endVoiceCall = function () {
                 isVoiceCallActive = false;
                 window.blockRestart = true;
+
+                // Reset Mute State
+                isMuted = false;
+                savedTranscript = '';  // Clear
+                const visualizer = document.getElementById('voiceVisualizer');
+                const btn = document.getElementById('muteBtn'); // Define btn
+                if (btn) {
+                    btn.classList.remove('muted');
+                    btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 3.01-2.44 5.5-5.5 5.5S6 14.01 6 11H4c0 3.53 2.61 6.43 6 6.92V21h4v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>`;
+                }
+                if (visualizer) visualizer.classList.remove('muted');
+
                 clearTimeout(silenceTimer); // Clear timer
                 clearInterval(typingInterval); // Clear typing effect
                 voiceOverlay.classList.remove('active');
@@ -636,12 +748,118 @@
 
         function addUserMessage(text) {
             removeWelcomeScreen();
+
+            // Remove edit buttons from previous messages
+            const prevEditBtns = chatMessages.querySelectorAll('.edit-btn');
+            prevEditBtns.forEach(btn => btn.remove());
+
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message user-message';
+
+            // Text Content Wrapper
+            const contentSpan = document.createElement('div');
+            contentSpan.className = 'message-content';
             if (currentFileName) text += `\n[Attached: ${currentFileName}]`;
-            messageDiv.innerText = text;
+            contentSpan.innerText = text;
+            messageDiv.appendChild(contentSpan);
+
+            // Edit Button
+            const editBtn = document.createElement('button');
+            editBtn.className = 'edit-btn';
+            editBtn.innerHTML = '✎';
+            editBtn.title = "Edit Message";
+            editBtn.onclick = () => enableEditMode(messageDiv, text);
+            messageDiv.appendChild(editBtn);
+
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function enableEditMode(messageDiv, oldText) {
+            // contentSpan might have attachment info, strip it for editing if wanted, 
+            // but for simplicity let's edit the full raw text displayed.
+            // Actually, we pass 'text' (which includes [Attached...]) to this function.
+
+            const originalContent = messageDiv.innerHTML; // Backup
+
+            messageDiv.innerHTML = ''; // Clear
+            const container = document.createElement('div');
+            container.className = 'edit-container';
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'edit-textarea';
+            textarea.value = oldText;
+            textarea.rows = 3;
+
+            const actions = document.createElement('div');
+            actions.className = 'edit-actions';
+
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'edit-actions button save-btn';
+            saveBtn.innerText = 'Save & Submit';
+            saveBtn.onclick = () => saveEdit(messageDiv, textarea.value);
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'edit-actions button cancel-btn';
+            cancelBtn.innerText = 'Cancel';
+            cancelBtn.onclick = () => {
+                messageDiv.innerHTML = originalContent; // Restore
+                // Re-bind click event because innerHTML nuked it
+                const btn = messageDiv.querySelector('.edit-btn');
+                if (btn) btn.onclick = () => enableEditMode(messageDiv, oldText);
+            };
+
+            actions.appendChild(cancelBtn);
+            actions.appendChild(saveBtn);
+
+            container.appendChild(textarea);
+            container.appendChild(actions);
+            messageDiv.appendChild(container);
+            textarea.focus();
+            // Cursor at end
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+            // Handle Enter key (Ctrl+Enter to save)
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    saveEdit(messageDiv, textarea.value);
+                }
+                if (e.key === 'Escape') {
+                    // Cancel
+                    actions.querySelector('.cancel-btn').click();
+                }
+            });
+        }
+
+        function saveEdit(messageDiv, newText) {
+            if (!newText.trim()) return;
+
+            // 1. Update UI of this message
+            messageDiv.innerHTML = '';
+            messageDiv.className = 'message user-message';
+
+            const contentSpan = document.createElement('div');
+            contentSpan.className = 'message-content';
+            contentSpan.innerText = newText;
+            messageDiv.appendChild(contentSpan);
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'edit-btn';
+            editBtn.innerHTML = '✎';
+            editBtn.title = "Edit Message";
+            editBtn.onclick = () => enableEditMode(messageDiv, newText);
+            messageDiv.appendChild(editBtn);
+
+            // 2. Remove all subsequent messages
+            let nextSibling = messageDiv.nextElementSibling;
+            while (nextSibling) {
+                const toRemove = nextSibling;
+                nextSibling = nextSibling.nextElementSibling;
+                toRemove.remove();
+            }
+
+            // 3. Re-submit to AI
+            eqRespond(newText);
         }
 
         function addEQMessage(text) {
