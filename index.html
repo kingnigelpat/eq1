@@ -56,6 +56,24 @@
                 transform: scale(1.05);
             }
         }
+
+        /* RTL Overrides for International Support */
+        [dir="rtl"] .user-message {
+            border-bottom-right-radius: 18px;
+            border-bottom-left-radius: 4px;
+            padding-right: 16px;
+            padding-left: 35px;
+        }
+
+        [dir="rtl"] .eq-message {
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 4px;
+        }
+
+        [dir="rtl"] .edit-btn {
+            right: auto;
+            left: 10px;
+        }
     </style>
 </head>
 
@@ -150,6 +168,18 @@
 
         <div class="voice-settings-panel" id="voiceSettingsPanel">
             <div class="settings-row">
+                <span class="settings-label">Interface Language</span>
+                <select id="langSelect" onchange="changeLanguage(this.value)">
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                    <option value="de">Deutsch</option>
+                    <option value="ja">日本語</option>
+                    <option value="zh">中文</option>
+                    <option value="ar">العربية</option>
+                </select>
+            </div>
+            <div class="settings-row">
                 <span class="settings-label">Voice</span>
                 <select id="voiceSelect"></select>
             </div>
@@ -161,7 +191,7 @@
                 <span class="settings-label">Pitch: <span id="pitchValue">1.0</span></span>
                 <input type="range" id="pitchRange" min="0.5" max="2" step="0.1" value="1">
             </div>
-            <button class="test-voice-btn" onclick="testVoice()">Test Voice</button>
+            <button class="test-voice-btn" onclick="testVoice()" data-i18n="test_voice">Test Voice</button>
         </div>
 
         <div class="voice-status" id="voiceStatus">Listening...</div>
@@ -232,11 +262,192 @@
         const voiceTranscript = document.getElementById('voiceTranscript');
         const voiceSendBtn = document.getElementById('voiceSendBtn');
 
+        // --- Internationalization ---
+        const MESSAGES_I18N = {
+            en: {
+                welcome: "Hello, {{username}}",
+                subtitle: "I'm EQ. Your personal companion. How are you feeling today?",
+                start_voice: "Start Voice Chat",
+                type_placeholder: "Type a message...",
+                listening: "Listening...",
+                mic_listening: "Listening... (Click mic to stop)",
+                mic_default: "Message EQ...",
+                speaking: "EQ Speaking...",
+                muted: "Muted",
+                resuming: "Resuming...",
+                thinking: "Thinking...",
+                end_call: "End Call",
+                test_voice: "Test Voice",
+                quota: "Quota Limit Reached",
+                access_denied: "Microphone Access Denied",
+                tap_to_speak: "Tap circle to speak"
+            },
+            es: {
+                welcome: "Hola, {{username}}",
+                subtitle: "Soy EQ. Tu compañero personal. ¿Cómo te sientes hoy?",
+                start_voice: "Iniciar Chat de Voz",
+                type_placeholder: "Escribe un mensaje...",
+                listening: "Escuchando...",
+                mic_listening: "Escuchando... (Clic para parar)",
+                mic_default: "Mensaje a EQ...",
+                speaking: "EQ Hablando...",
+                muted: "Silenciado",
+                resuming: "Reanudando...",
+                thinking: "Pensando...",
+                end_call: "Terminar Llamada",
+                test_voice: "Probar Voz",
+                quota: "Límite de Cuota Alcanzado",
+                access_denied: "Acceso al Micrófono Denegado",
+                tap_to_speak: "Toca el círculo para hablar"
+            },
+            fr: {
+                welcome: "Bonjour, {{username}}",
+                subtitle: "Je suis EQ. Votre compagnon personnel. Comment allez-vous ?",
+                start_voice: "Démarrer Chat Vocal",
+                type_placeholder: "Tapez un message...",
+                listening: "J'écoute...",
+                mic_listening: "J'écoute... (Cliquez pour arrêter)",
+                mic_default: "Message à EQ...",
+                speaking: "EQ Parle...",
+                muted: "Muet",
+                resuming: "Reprise...",
+                thinking: "Je réfléchis...",
+                end_call: "Fin de l'appel",
+                test_voice: "Tester la Voix",
+                quota: "Limite de quota atteinte",
+                access_denied: "Accès micro refusé",
+                tap_to_speak: "Touchez le cercle pour parler"
+            },
+            de: {
+                welcome: "Hallo, {{username}}",
+                subtitle: "Ich bin EQ. Wie fühlst du dich heute?",
+                start_voice: "Sprachchat starten",
+                type_placeholder: "Nachricht eingeben...",
+                listening: "Zuhören...",
+                mic_listening: "Zuhören... (Klicken zum Stoppen)",
+                mic_default: "Nachricht an EQ...",
+                speaking: "EQ spricht...",
+                muted: "Stummgeschaltet",
+                resuming: "Wiederaufnahme...",
+                thinking: "Nachdenken...",
+                end_call: "Anruf beenden",
+                test_voice: "Stimme testen",
+                quota: "Kontingentlimit erreicht",
+                access_denied: "Mikrofonzugriff verweigert",
+                tap_to_speak: "Kreis antippen zum Sprechen"
+            },
+            ja: {
+                welcome: "こんにちは、{{username}}",
+                subtitle: "EQです。今日の気分はどうですか？",
+                start_voice: "ボイスチャット開始",
+                type_placeholder: "メッセージを入力...",
+                listening: "聞き取り中...",
+                mic_listening: "聞き取り中... (クリックで停止)",
+                mic_default: "EQにメッセージ...",
+                speaking: "EQが話しています...",
+                muted: "ミュート中",
+                resuming: "再開中...",
+                thinking: "考え中...",
+                end_call: "通話終了",
+                test_voice: "音声テスト",
+                quota: "クォータ制限に達しました",
+                access_denied: "マイクへのアクセスが拒否されました",
+                tap_to_speak: "円をタップして話す"
+            },
+            zh: {
+                welcome: "你好，{{username}}",
+                subtitle: "我是EQ。你今天感觉如何？",
+                start_voice: "开始语音聊天",
+                type_placeholder: "输入消息...",
+                listening: "正在听...",
+                mic_listening: "正在听... (点击停止)",
+                mic_default: "给EQ发消息...",
+                speaking: "EQ正在说话...",
+                muted: "已静音",
+                resuming: "恢复中...",
+                thinking: "思考中...",
+                end_call: "结束通话",
+                test_voice: "测试语音",
+                quota: "配额限制已达",
+                access_denied: "麦克风访问被拒绝",
+                tap_to_speak: "点击圆圈说话"
+            },
+            ar: {
+                welcome: "مرحباً {{username}}",
+                subtitle: "أنا EQ. رفيقك الشخصي. كيف تشعر اليوم؟",
+                start_voice: "بدء الدردشة الصوتية",
+                type_placeholder: "اكتب رسالة...",
+                listening: "استماع...",
+                mic_listening: "استماع... (اضغط للإيقاف)",
+                mic_default: "رسالة إلى EQ...",
+                speaking: "EQ يتحدث...",
+                muted: "مكتوم",
+                resuming: "استئناف...",
+                thinking: "تفكير...",
+                end_call: "إنهاء المكالمة",
+                test_voice: "اختبار الصوت",
+                quota: "تم الوصول إلى الحد",
+                access_denied: "تم رفض الوصول للميكروفون",
+                tap_to_speak: "اضغط للدائرة للتحدث"
+            }
+        };
+
+        let currentLang = localStorage.getItem('eq_lang') || 'en';
+
+        function updateUIText() {
+            const t = MESSAGES_I18N[currentLang] || MESSAGES_I18N.en;
+
+            // Static Elements
+            const welcomeTitle = document.querySelector('.welcome-title');
+            if (welcomeTitle) welcomeTitle.innerText = t.welcome.replace('{{username}}', '{{ username }}'); // Logic to preserve username handled by python usually, but here dynamic
+
+            const welcomeSubtitle = document.querySelector('.welcome-subtitle');
+            if (welcomeSubtitle) welcomeSubtitle.innerText = t.subtitle;
+
+            const startBtn = document.querySelector('.main-call-btn');
+            if (startBtn) startBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" /></svg> ${t.start_voice}`;
+
+            userInput.placeholder = t.type_placeholder;
+
+            const closeBtn = document.querySelector('.close-voice-btn');
+            if (closeBtn) closeBtn.innerText = t.end_call;
+
+            const testBtn = document.querySelector('.test-voice-btn');
+            if (testBtn) testBtn.innerText = t.test_voice;
+
+            // Update direction for Arabic
+            if (currentLang === 'ar') {
+                document.body.style.direction = 'rtl';
+                document.querySelector('.chat-input-area').style.direction = 'rtl';
+            } else {
+                document.body.style.direction = 'ltr';
+                document.querySelector('.chat-input-area').style.direction = 'ltr';
+            }
+        }
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('eq_lang', lang);
+            updateUIText();
+        }
+
         // --- Voice Logic ---
         const voiceOptions = [
-            { name: "Male", id: "male-premium", type: "premium" },
-            { name: "Female", id: "female-premium", type: "premium" },
-            { name: "Pidgin", id: "pidgin-premium", type: "premium" }
+            { name: "English (Male)", id: "male-premium", type: "premium", locale: "en-US" },
+            { name: "English (Female)", id: "female-premium", type: "premium", locale: "en-US" },
+            { name: "Pidgin (Nigeria)", id: "pidgin-premium", type: "premium", locale: "en-NG" },
+            { name: "Español (Hombre)", id: "es-ES-Male", type: "premium", locale: "es-ES" },
+            { name: "Español (Mujer)", id: "es-ES-Female", type: "premium", locale: "es-ES" },
+            { name: "Français (Homme)", id: "fr-FR-Male", type: "premium", locale: "fr-FR" },
+            { name: "Français (Femme)", id: "fr-FR-Female", type: "premium", locale: "fr-FR" },
+            { name: "Deutsch (Mann)", id: "de-DE-Male", type: "premium", locale: "de-DE" },
+            { name: "Deutsch (Frau)", id: "de-DE-Female", type: "premium", locale: "de-DE" },
+            { name: "日本語 (男性)", id: "ja-JP-Male", type: "premium", locale: "ja-JP" },
+            { name: "日本語 (女性)", id: "ja-JP-Female", type: "premium", locale: "ja-JP" },
+            { name: "中文 (男)", id: "zh-CN-Male", type: "premium", locale: "zh-CN" },
+            { name: "中文 (女)", id: "zh-CN-Female", type: "premium", locale: "zh-CN" },
+            { name: "العربية (رجل)", id: "ar-SA-Male", type: "premium", locale: "ar-SA" },
+            { name: "العربية (امرأة)", id: "ar-SA-Female", type: "premium", locale: "ar-SA" },
         ];
 
         function populateVoiceList() {
@@ -246,8 +457,16 @@
                 option.textContent = v.name;
                 option.setAttribute('data-id', v.id);
                 option.setAttribute('data-type', v.type);
+                option.setAttribute('data-locale', v.locale || 'en-US');
                 voiceSelect.appendChild(option);
             });
+
+            // Init Language
+            const langSelect = document.getElementById('langSelect');
+            if (langSelect) {
+                langSelect.value = currentLang;
+                updateUIText();
+            }
 
             // Restore selection
             const savedId = localStorage.getItem('eq_selected_voice_id');
@@ -317,7 +536,7 @@
                 visualizer.classList.add('muted'); // Add visual feedback to center circle
                 // Change Icon to Muted
                 btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l2.97 2.97c-.85.35-1.76.57-2.73.57-3.01 0-5.5-2.45-5.5-5.5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c.57-.08 1.12-.24 1.64-.46L19.73 22 21 20.73 4.27 3z"/></svg>`;
-                voiceStatus.innerText = "Muted";
+                voiceStatus.innerText = MESSAGES_I18N[currentLang].muted;
                 voiceVisualizer.style.opacity = '0.3';
                 if (recognition) recognition.stop();
             } else {
@@ -326,7 +545,7 @@
                 visualizer.classList.remove('muted');
                 // Change Icon to Unmuted
                 btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 3.01-2.44 5.5-5.5 5.5S6 14.01 6 11H4c0 3.53 2.61 6.43 6 6.92V21h4v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>`;
-                voiceStatus.innerText = "Resuming...";
+                voiceStatus.innerText = MESSAGES_I18N[currentLang].resuming;
                 voiceVisualizer.style.opacity = '1';
                 // Small delay and resume
                 setTimeout(startListening, 300);
@@ -350,16 +569,15 @@
 
                 // Dynamic Language Selection
                 const selected = voiceSelect.selectedOptions[0];
-                const vId = selected ? selected.getAttribute('data-id') : 'male-premium';
-                recognition.lang = (vId === 'pidgin-premium') ? 'en-NG' : 'en-US';
+                const locale = selected ? selected.getAttribute('data-locale') : 'en-US';
+                recognition.lang = locale;
 
                 if (window.speechSynthesis) {
                     window.speechSynthesis.pause();
                     window.speechSynthesis.resume();
                 }
                 recognition.start();
-                const langLabel = (recognition.lang === 'en-NG') ? " (Pidgin)" : "";
-                voiceStatus.innerText = "Listening" + langLabel + "...";
+                voiceStatus.innerText = MESSAGES_I18N[currentLang].listening;
                 voiceVisualizer.style.opacity = '1';
                 voiceSendBtn.style.display = 'flex';
                 voiceVisualizer.classList.remove('speaking');
@@ -423,7 +641,7 @@
                             if (isVoiceCallActive || isTest) {
                                 voiceVisualizer.classList.add('speaking');
                                 if (!isTest) {
-                                    voiceStatus.innerText = "EQ Speaking...";
+                                    voiceStatus.innerText = MESSAGES_I18N[currentLang].speaking;
                                     // Start synced typing
                                     const duration = currentAudio.duration && isFinite(currentAudio.duration) ? currentAudio.duration : (text.length * 0.06);
                                     startTypingEffect(text, duration);
@@ -434,7 +652,7 @@
                         currentAudio.onended = () => {
                             voiceVisualizer.classList.remove('speaking');
                             if (isVoiceCallActive && !isTest) {
-                                voiceStatus.innerText = "Listening...";
+                                voiceStatus.innerText = MESSAGES_I18N[currentLang].listening;
                             }
                             if (onEndCallback) onEndCallback();
                         };
@@ -443,8 +661,8 @@
                     })
                     .catch(err => {
                         if (err.message && err.message.includes('Credit limit')) {
-                            alert("Credit limit passed come back 5hrs later");
-                            voiceStatus.innerText = "Quota Limit Reached";
+                            alert(MESSAGES_I18N[currentLang].quota);
+                            voiceStatus.innerText = MESSAGES_I18N[currentLang].quota;
                             voiceVisualizer.style.opacity = '0.5';
                             // Ensure no further processing
                             if (currentAudio) { currentAudio.pause(); currentAudio = null; }
@@ -526,23 +744,23 @@
 
             recognition.onstart = () => {
                 if (isVoiceCallActive) {
-                    voiceStatus.innerText = "Listening...";
+                    voiceStatus.innerText = MESSAGES_I18N[currentLang].listening;
                     voiceTranscript.innerText = savedTranscript || ""; // Restore text if any
                     voiceSendBtn.style.display = 'flex';
                     voiceSendBtn.style.opacity = '1';
                 } else {
                     micBtn.classList.add('recording');
-                    userInput.placeholder = "Listening... (Click mic to stop)";
+                    userInput.placeholder = MESSAGES_I18N[currentLang].mic_listening;
                 }
             };
 
             recognition.onerror = (event) => {
                 if (isVoiceCallActive) {
                     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                        voiceStatus.innerText = "Microphone Access Denied";
+                        voiceStatus.innerText = MESSAGES_I18N[currentLang].access_denied;
                         alert("Please allow microphone access.");
                     } else {
-                        voiceStatus.innerText = "Tap circle to speak";
+                        voiceStatus.innerText = MESSAGES_I18N[currentLang].tap_to_speak;
                         voiceVisualizer.style.opacity = '0.5';
                     }
                 }
@@ -550,7 +768,7 @@
 
             recognition.onend = () => {
                 micBtn.classList.remove('recording');
-                userInput.placeholder = "Message EQ...";
+                userInput.placeholder = MESSAGES_I18N[currentLang].mic_default;
                 if (isVoiceCallActive && !window.blockRestart) {
                     setTimeout(() => {
                         // Check both System and Premium audio status
@@ -561,7 +779,7 @@
                             try { recognition.start(); } catch (e) {
                                 console.log("Restart error:", e);
                                 if (!isMuted) {
-                                    voiceStatus.innerText = "Tap circle to speak";
+                                    voiceStatus.innerText = MESSAGES_I18N[currentLang].tap_to_speak;
                                     voiceVisualizer.style.opacity = '0.5';
                                 }
                             }
@@ -647,8 +865,10 @@
                 if (!text) return;
                 window.blockRestart = true;
                 recognition.stop();
+                window.blockRestart = true;
+                recognition.stop();
                 savedTranscript = ''; // Clear saved since we sent it
-                voiceStatus.innerText = "Thinking...";
+                voiceStatus.innerText = MESSAGES_I18N[currentLang].thinking;
                 handleSend();
             });
 
@@ -906,7 +1126,8 @@
                     body: JSON.stringify({
                         message: prompt,
                         user_id: userId,
-                        voice_id: currentVoiceId  // Send voice ID to sync language
+                        voice_id: currentVoiceId,  // Send voice ID to sync language
+                        local_time: new Date().toLocaleString()
                     })
                 });
 

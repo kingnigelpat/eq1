@@ -7,3 +7,4 @@ users.db
 *.log
 venv/
 .DS_Store
+service account key.json

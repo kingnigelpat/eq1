@@ -10,7 +10,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 from datetime import datetime, timedelta, timezone
 
+import firebase_admin
+from firebase_admin import credentials, auth as firebase_auth
+
 app = Flask(__name__)
+
+# Initialize Firebase Admin
+try:
+    cred = credentials.Certificate('service account key.json')
+    firebase_admin.initialize_app(cred)
+    print("Firebase Admin Initialized Successfully")
+except Exception as e:
+    print(f"Warning: Firebase Admin failed to initialize: {e}")
 # Config
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
@@ -264,7 +275,7 @@ def is_rate_limited(user_identifier, limit=10, period_seconds=60):
                       
     return recent_count >= limit
 
-def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo"):
+def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo", local_time=None):
     try:
         # 1. Save User Message
         save_message(user_identifier, 'user', user_message)
@@ -293,8 +304,13 @@ def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo")
 - Keep it warm and relatable.
 - Never mock or correct the user's language. e.g 'afa' or 'how far' means 'how are you'.
 """
+        elif lang_pref != 'english':
+             dynamic_system_prompt += f"\n\n### CURRENT MODE: {lang_pref.upper()}\nRespond in warm, natural {lang_pref}. Maintain the persona of EQ (a supportive friend)."
         else:
              dynamic_system_prompt += "\n\n### CURRENT MODE: ENGLISH\nRespond in standard, warm English. Do not use Pidgin unless explicitly asked."
+
+        if local_time:
+             dynamic_system_prompt += f"\n- **User's Local Time:** {local_time} (Be aware of this for greetings)."
 
         history = [{"role": "system", "content": dynamic_system_prompt}]
         history += get_recent_messages(user_identifier)
@@ -412,9 +428,43 @@ PREMIUM_VOICES = {
     # Standard Free Voices (Edge TTS) - Saves your $4!
     'male-premium': 'en-US-ChristopherNeural', # Free High Quality Male
     'female-premium': 'en-US-AriaNeural',      # Free High Quality Female
-    # 'male-premium': 'eleven_QIhD5ivPGEoYZQDocuHI', # ElevenLabs (expensive)
-    # 'female-premium': 'eleven_21m00Tcm4TlvDq8ikWAM', # ElevenLabs (expensive)
-    'pidgin-premium': 'en-NG-AbeoNeural'  # Edge TTS
+    'pidgin-premium': 'en-NG-AbeoNeural',  # Nigerian Pidgin
+    
+    # International Voices
+    'es-ES-Male': 'es-ES-AlvaroNeural',
+    'es-ES-Female': 'es-ES-ElviraNeural',
+    'fr-FR-Male': 'fr-FR-HenriNeural',
+    'fr-FR-Female': 'fr-FR-DeniseNeural',
+    'de-DE-Male': 'de-DE-KillianNeural',
+    'de-DE-Female': 'de-DE-KatjaNeural',
+    'ja-JP-Male': 'ja-JP-KeitaNeural',
+    'ja-JP-Female': 'ja-JP-NanamiNeural',
+    'zh-CN-Male': 'zh-CN-YunxiNeural',
+    'zh-CN-Female': 'zh-CN-XiaoxiaoNeural',
+    'ar-SA-Male': 'ar-SA-HamedNeural',
+    'ar-SA-Female': 'ar-SA-ZariyahNeural',
+    'hi-IN-Male': 'hi-IN-MadhurNeural',
+    'hi-IN-Female': 'hi-IN-SwaraNeural'
+}
+
+VOICE_TO_LANG = {
+    'male-premium': 'english',
+    'female-premium': 'english',
+    'pidgin-premium': 'pidgin',
+    'es-ES-Male': 'spanish',
+    'es-ES-Female': 'spanish',
+    'fr-FR-Male': 'french',
+    'fr-FR-Female': 'french',
+    'de-DE-Male': 'german',
+    'de-DE-Female': 'german',
+    'ja-JP-Male': 'japanese',
+    'ja-JP-Female': 'japanese',
+    'zh-CN-Male': 'chinese',
+    'zh-CN-Female': 'chinese',
+    'ar-SA-Male': 'arabic',
+    'ar-SA-Female': 'arabic',
+    'hi-IN-Male': 'hindi',
+    'hi-IN-Female': 'hindi'
 }
 
 @app.route('/tts', methods=['POST'])
@@ -596,6 +646,68 @@ def upload_file():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+# --- ADMIN ROUTES ---
+@app.route('/admin')
+@login_required
+def admin_dashboard():
+    # Strict Access Control
+    if current_user.username.lower() != 'kingnigel': # Case insensitive check
+        return redirect(url_for('chat_app'))
+    return open('admin.html', encoding='utf-8').read()
+
+@app.route('/admin/data')
+@login_required
+def admin_data():
+    if current_user.username.lower() != 'kingnigel':
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    users = User.query.all()
+    user_list = []
+    
+    # Simple list for now
+    for u in users:
+        user_list.append({
+            "id": u.id,
+            "username": u.username,
+            "email": u.email,
+            "joined": "Unknown" # We don't track joined date in local DB yet
+        })
+        
+    return jsonify({"users": user_list})
+
+@app.route('/admin/delete_user', methods=['POST'])
+@login_required
+def admin_delete_user():
+    if current_user.username.lower() != 'kingnigel':
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    user_id = request.json.get('user_id')
+    user = User.query.get(user_id)
+    
+    if user:
+        if user.username.lower() == 'kingnigel':
+             return jsonify({"success": False, "message": "Cannot delete the King."}), 400
+             
+        username = user.username
+        email = user.email
+        
+        # 1. Delete from SQLite
+        db.session.delete(user)
+        db.session.commit()
+        
+        # 2. Delete from Firebase (Best Effort)
+        if email:
+             try:
+                 user_record = firebase_auth.get_user_by_email(email)
+                 firebase_auth.delete_user(user_record.uid)
+                 print(f"Deleted Firebase user: {email}")
+             except Exception as e:
+                 print(f"Firebase delete error (ignoring): {e}")
+                 
+        return jsonify({"success": True})
+        
+    return jsonify({"success": False, "message": "User not found"}), 404
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -614,6 +726,23 @@ def signup():
         if email and User.query.filter_by(email=email).first():
             return jsonify({"success": False, "message": "Email already registered."}), 409
         
+        # Firebase Creation
+        try:
+            firebase_user = firebase_auth.create_user(
+                email=email,
+                password=password,
+                display_name=username
+            )
+            print(f"Firebase User Created: {firebase_user.uid}")
+        except firebase_auth.EmailAlreadyExistsError:
+            return jsonify({"success": False, "message": "Email already registered (Firebase)."}), 409
+        except Exception as e:
+            print(f"Firebase Signup Error: {e}")
+            # Optional: Allow local signup even if Firebase fails? 
+            # Better to fail to keep sync, unless dev mode.
+            # return jsonify({"success": False, "message": f"Signup Error: {str(e)}"}), 500
+            pass # Proceed to local DB for now
+
         new_user = User(username=username, email=email)
         new_user.set_password(password)
         db.session.add(new_user)
@@ -624,6 +753,33 @@ def signup():
     
     # Serve Signup Page
     return open('signup.html', encoding='utf-8').read()
+
+
+@app.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.json
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({"success": False, "message": "Email is required."}), 400
+
+    try:
+        # Generate Password Reset Link
+        link = firebase_auth.generate_password_reset_link(email)
+        
+        # Since we don't have an email server, we return the link for testing/dev purposes
+        # In production, you would send this via SendGrid/SMTP
+        print(f"PASSWORD RESET LINK FOR {email}: {link}")
+        
+        return jsonify({
+            "success": True, 
+            "message": "Password reset link generated (Check Server Console)",
+            "debug_link": link 
+        })
+    except firebase_auth.UserNotFoundError:
+        return jsonify({"success": False, "message": "User not found."}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 
@@ -666,9 +822,9 @@ def chat():
     selected_voice_id = data.get('voice_id')
     lower_input = user_input.lower()
     
-    if selected_voice_id == 'pidgin-premium':
-        USER_LANGUAGES[user_identifier] = 'pidgin'
-    elif selected_voice_id and 'premium' in selected_voice_id: # Any other premium/standard voice
+    if selected_voice_id in VOICE_TO_LANG:
+        USER_LANGUAGES[user_identifier] = VOICE_TO_LANG[selected_voice_id]
+    elif selected_voice_id and 'premium' in selected_voice_id: # Fallback custom
         USER_LANGUAGES[user_identifier] = 'english'
 
     # Manual Override (takes precedence if user explicitly asks in this message)
@@ -693,7 +849,8 @@ def chat():
     # For now, we'll just check the OUTPUT.
     
     # Use the selected model
-    ai_response = get_ai_response(user_identifier, user_input, model=current_model)
+    local_time = data.get('local_time')
+    ai_response = get_ai_response(user_identifier, user_input, model=current_model, local_time=local_time)
     
     if ai_response:
         # Increment message count (Always increment? Yes, to track total usage, though check_quota only cares about first 15)

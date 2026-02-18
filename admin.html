@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EQ Admin - The Throne</title>
+    <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary: #D4AF37;
+            --bg: #050505;
+            --surface: #111;
+            --text: #eee;
+            --danger: #ff4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            font-family: 'Space Mono', monospace;
+            color: var(--primary);
+            font-size: 1.5rem;
+            letter-spacing: -1px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.02);
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .delete-btn {
+            background: rgba(255, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(255, 68, 68, 0.2);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .delete-btn:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .back-btn {
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .back-btn:hover {
+            color: #fff;
+        }
+
+        .refresh-btn {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .refresh-btn:hover {
+            background: var(--primary);
+            color: #000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div>
+            <h1>EQ / ADMIN</h1>
+            <a href="/" class="back-btn">← Back to App</a>
+        </div>
+        <button class="refresh-btn" onclick="loadData()">Refresh Data</button>
+    </header>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="totalUsers">-</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+        <!-- Placeholder for future stats -->
+        <div class="stat-card" style="opacity:0.5">
+            <div class="stat-value">Active</div>
+            <div class="stat-label">System Status</div>
+        </div>
+    </div>
+
+    <h2 style="margin-bottom:1rem; font-size:1.1rem;">User Database</h2>
+    <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody">
+                <tr>
+                    <td colspan="4" style="text-align:center; opacity:0.5;">Loading users...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                const res = await fetch('/admin/data');
+                if (!res.ok) throw new Error("Unauthorized");
+
+                const data = await res.json();
+                renderUsers(data.users);
+            } catch (e) {
+                console.error(e);
+                // Swal.fire("Error", "Could not load admin data.", "error");
+            }
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+
+            document.getElementById('totalUsers').innerText = users.length;
+
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+
+                const isKing = user.username.toLowerCase() === 'kingnigel';
+
+                tr.innerHTML = `
+                    <td style="font-family:'Space Mono', monospace; opacity:0.7;">#${user.id}</td>
+                    <td style="font-weight:600; ${isKing ? 'color:var(--primary);' : ''}">${user.username} ${isKing ? '👑' : ''}</td>
+                    <td style="opacity:0.8;">${user.email || '—'}</td>
+                    <td>
+                        ${!isKing ? `<button class="delete-btn" onclick="deleteUser(${user.id}, '${user.username}')">Delete</button>` : '<span style="opacity:0.3; font-size:0.8rem;">Protected</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function deleteUser(id, name) {
+            const confirm = await Swal.fire({
+                title: 'Banish User?',
+                text: `Are you sure you want to permanently delete ${name}? This cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ff4444',
+                cancelButtonColor: '#333',
+                confirmButtonText: 'Yes, Delete',
+                background: '#111',
+                color: '#fff'
+            });
+
+            if (confirm.isConfirmed) {
+                try {
+                    const res = await fetch('/admin/delete_user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: id })
+                    });
+
+                    if (res.ok) {
+                        Swal.fire({
+                            title: 'Banished!',
+                            text: 'The user has been removed.',
+                            icon: 'success',
+                            background: '#111',
+                            color: '#fff',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                        loadData();
+                    } else {
+                        throw new Error('Failed');
+                    }
+                } catch (e) {
+                    Swal.fire("Error", "Could not delete user.", "error");
+                }
+            }
+        }
+
+        // Init
+        loadData();
+    </script>
+</body>
+
+</html>

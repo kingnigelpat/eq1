@@ -21,3 +21,4 @@ Werkzeug==3.1.5
 gunicorn
 pypdf
 edge-tts
+firebase-admin

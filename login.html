@@ -227,10 +227,58 @@
         </form>
 
         <div class="footer-links">
+            <p><a href="#" onclick="forgotPassword()">Forgot Password?</a></p>
             <p>Don't have an account? <a href="/signup">Create one</a></p>
         </div>
     </div>
 
+    <script type="module">
+        import { auth, sendPasswordResetEmail } from "/static/firebase_init.js";
+
+        // Expose globally for the onclick handler
+        window.forgotPassword = async function () {
+            const { value: email } = await Swal.fire({
+                title: 'Reset Password',
+                input: 'email',
+                inputLabel: 'Enter your email address',
+                inputPlaceholder: 'name@example.com',
+                background: '#111',
+                color: '#fff',
+                confirmButtonColor: '#D4AF37',
+                cancelButtonColor: '#333',
+                showCancelButton: true
+            });
+
+            if (email) {
+                Swal.showLoading();
+                try {
+                    await sendPasswordResetEmail(auth, email);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Email Sent',
+                        text: 'Check your inbox for the password reset link.',
+                        background: '#111',
+                        color: '#fff',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#D4AF37',
+                    });
+                } catch (error) {
+                    console.error("Firebase Error: ", error);
+                    let msg = "Could not send reset email.";
+                    if (error && error.code === 'auth/user-not-found') msg = "No user found with this email.";
+                    if (error && error.code === 'auth/invalid-email') msg = "Invalid email format.";
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: msg,
+                        background: '#111',
+                        color: '#fff'
+                    });
+                }
+            }
+        };
+    </script>
     <script>
         const loginForm = document.getElementById('loginForm');
         const submitBtn = document.getElementById('submitBtn');
@@ -258,19 +306,41 @@
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    // Success Animation
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Welcome Back',
-                        text: 'Logging you in...',
-                        timer: 1500,
-                        showConfirmButton: false,
-                        background: '#111',
-                        color: '#fff',
-                        iconColor: '#D4AF37'
-                    }).then(() => {
-                        window.location.href = result.redirect;
-                    });
+                    // Check if it's the King
+                    if (data.username.toLowerCase() === 'kingnigel') {
+                        Swal.fire({
+                            title: 'Welcome Your Majesty',
+                            text: 'Where shall I take you?',
+                            icon: 'question',
+                            showDenyButton: true,
+                            confirmButtonText: 'Admin Panel 👑',
+                            denyButtonText: 'Chat App 💬',
+                            confirmButtonColor: '#D4AF37',
+                            denyButtonColor: '#333',
+                            background: '#111',
+                            color: '#fff'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.location.href = '/admin';
+                            } else {
+                                window.location.href = '/';
+                            }
+                        });
+                    } else {
+                        // Normal User Flow
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Welcome Back',
+                            text: 'Logging you in...',
+                            timer: 1500,
+                            showConfirmButton: false,
+                            background: '#111',
+                            color: '#fff',
+                            iconColor: '#D4AF37'
+                        }).then(() => {
+                            window.location.href = result.redirect;
+                        });
+                    }
                 } else {
                     // Error Popup
                     Swal.fire({
