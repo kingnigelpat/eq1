@@ -735,7 +735,9 @@ def signup():
             )
             print(f"Firebase User Created: {firebase_user.uid}")
         except firebase_auth.EmailAlreadyExistsError:
-            return jsonify({"success": False, "message": "Email already registered (Firebase)."}), 409
+            # If user exists in Firebase but not locally (e.g. fresh deploy), allow local creation
+            print("Email exists in Firebase. Proceeding to create local user.")
+            pass
         except Exception as e:
             print(f"Firebase Signup Error: {e}")
             # Optional: Allow local signup even if Firebase fails? 
