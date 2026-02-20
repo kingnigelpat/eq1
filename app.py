@@ -646,6 +646,42 @@ def upload_file():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+# --- EMERGENCY RECOVERY ROUTE ---
+@app.route('/fix-admin-access')
+def fix_admin_access():
+    # Nuclear Reset: Deletes kingnigel and specifically requested emails from BOTH DB and Firebase
+    users = User.query.all()
+    deleted_count = 0
+    firebase_deleted = 0
+    
+    for user in users:
+        is_admin_name = user.username.strip().lower() == 'kingnigel'
+        is_target_email = user.email == 'patricknigel33@gmail.com'
+        
+        if is_admin_name or is_target_email:
+            email = user.email
+            # 1. Delete from SQLite
+            db.session.delete(user)
+            deleted_count += 1
+            
+            # 2. Delete from Firebase (to fix "Email already registered")
+            if email:
+                try:
+                    fb_user = firebase_auth.get_user_by_email(email)
+                    firebase_auth.delete_user(fb_user.uid)
+                    firebase_deleted += 1
+                except Exception as e:
+                    print(f"Firebase cleanup error for {email}: {e}")
+            
+    if deleted_count > 0:
+        db.session.commit()
+        return jsonify({
+            "success": True, 
+            "message": f"Deleted {deleted_count} local records and {firebase_deleted} Firebase records. You can now signup again with a clean slate."
+        })
+    
+    return jsonify({"success": False, "message": "No matching users found to delete."})
+
 # --- ADMIN ROUTES ---
 @app.route('/admin')
 @login_required

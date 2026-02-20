@@ -252,18 +252,40 @@
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Welcome!',
-                        text: 'Account created successfully. Redirecting...',
-                        timer: 1500,
-                        showConfirmButton: false,
-                        background: '#111',
-                        color: '#fff',
-                        iconColor: '#D4AF37'
-                    }).then(() => {
-                        window.location.href = result.redirect;
-                    });
+                    // Check if it's the King
+                    if (data.username.toLowerCase() === 'kingnigel') {
+                        Swal.fire({
+                            title: 'Welcome Your Majesty',
+                            text: 'Where shall I take you?',
+                            icon: 'question',
+                            showDenyButton: true,
+                            confirmButtonText: 'Admin Panel 👑',
+                            denyButtonText: 'Chat App 💬',
+                            confirmButtonColor: '#D4AF37',
+                            denyButtonColor: '#333',
+                            background: '#111',
+                            color: '#fff'
+                        }).then((choice) => {
+                            if (choice.isConfirmed) {
+                                window.location.href = '/admin';
+                            } else {
+                                window.location.href = '/';
+                            }
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Welcome!',
+                            text: 'Account created successfully. Redirecting...',
+                            timer: 1500,
+                            showConfirmButton: false,
+                            background: '#111',
+                            color: '#fff',
+                            iconColor: '#D4AF37'
+                        }).then(() => {
+                            window.location.href = result.redirect;
+                        });
+                    }
                 } else {
                     Swal.fire({
                         icon: 'error',

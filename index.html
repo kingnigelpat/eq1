@@ -1174,6 +1174,34 @@
             }
         });
 
+        // Dynamic visibility for Call (FAB) and Send buttons
+        userInput.addEventListener('input', () => {
+            const hasText = userInput.value.trim().length > 0;
+            const fab = document.getElementById('fabCallBtn');
+            const sendBtn = document.getElementById('sendButton');
+
+            if (hasText) {
+                if (fab) fab.classList.add('visible');
+                if (sendBtn) {
+                    sendBtn.style.opacity = '1';
+                    sendBtn.style.visibility = 'visible';
+                    sendBtn.style.pointerEvents = 'all';
+                }
+            } else {
+                if (fab) fab.classList.remove('visible');
+                if (sendBtn) {
+                    sendBtn.style.opacity = '0';
+                    sendBtn.style.visibility = 'hidden';
+                    sendBtn.style.pointerEvents = 'none';
+                }
+            }
+        });
+
+        // Initial state for Send Button
+        sendButton.style.opacity = '0';
+        sendButton.style.visibility = 'hidden';
+        sendButton.style.pointerEvents = 'none';
+
         // --- File Upload ---
         uploadBtn.addEventListener('click', () => fileInput.click());
 
@@ -1221,9 +1249,10 @@
         // --- Init ---
         window.addEventListener('load', () => {
             populateVoiceList();
-            // Show FAB on load
+            // Initial FAB check
             const fab = document.getElementById('fabCallBtn');
-            if (fab) setTimeout(() => fab.classList.add('visible'), 1000);
+            const hasText = userInput.value.trim().length > 0;
+            if (fab && hasText) fab.classList.add('visible');
         });
         // Fallback safety
         setTimeout(populateVoiceList, 1000);
