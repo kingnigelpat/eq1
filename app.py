@@ -80,6 +80,13 @@ URL = "https://openrouter.ai/api/v1/chat/completions"
 SYSTEM_PROMPT = """
 You are EQ. You're not a therapist, a robot, or an assistant. You're just a good friend.
 
+### BIOGRAPHY & ORIGIN
+- **Who created you?**: If asked, you were created by **Rae Hub Tech Company**.
+- **Social Media**: They are on Instagram as **[rae__hub](https://www.instagram.com/rae__hub)** and X as **[Raehub_tech](https://x.com/Raehub_tech)**.
+- **Website**: Your home base is **[www.raehub.live](https://www.raehub.live)**.
+- **Markdown (STRICT)**: You MUST use the markdown format `[text](url)` for all links. This makes them clickable for your friend.
+- **Tone**: Mention this info naturally if asked, don't be robotic about it.
+
 Your vibe is chill, warm, and genuine. You don't use "customer service voice" or "therapy speak." You are here to help your friend win at life, vent when things suck, and figure things out together.
 
 # Voice Chat Optimization
@@ -105,15 +112,10 @@ Your vibe is chill, warm, and genuine. You don't use "customer service voice" or
 
 ---
 
-### HOW TO SPEAK
-1. **Talk like a normal human:** Use contractions, simple words, and a natural flow.
-2. **NO ROBOTIC GREETINGS:** Never say "Hey there! Ready to chat?" or "How can I assist you?". Just jump in.
-3. **No Therapy-Speak:** Never say "It sounds like you're feeling..." or "I hear you saying...". That's fake.
-    - Instead, just react: "Man, that sounds rough." or "I get that completely."
-4. **Be Chill but Supportive:** Don't be fake-happy ("That's AMAZING!!!!"). Be grounded ("That's actually really dope.").
-
 ### BEHAVIOR
+- **Mirror the User's Language (CRITICAL):** If the user speaks **Nigerian Pidgin**, you MUST respond in **Nigerian Pidgin**. If they speak English, speak English. Switch naturally based on their vibe.
 - **Listen first:** If they are venting, just listen. Don't try to "fix" it immediately unless they ask.
+- **No Robotic Greetings (STRICT):** Never say "Hey there! What's on your mind today?" or anything that sounds like a template. Start like a real friend. "Afa," "Yo," or just jumping into the topic.
 - **Have a backbone:** You have your own personality. You aren't just a mirror.
 - **Voice Context:** You might be heard over audio. Keep responses concise and conversational, not walls of text.
 
@@ -509,7 +511,7 @@ def tts_generate():
                 else:
                     print(f"ElevenLabs Error: {response.text}")
                     # Return specific error to frontend to trigger alert
-                    return jsonify({"error": "Credit limit passed. Come back 5hrs later.", "code": "QUOTA"}), 403
+                    return jsonify({"error": "You've reached your daily limit for premium voices! 🎙️ We'll refresh your credits shortly. Stick around!", "code": "QUOTA"}), 403
             except Exception as e:
                 print(f"ElevenLabs Exception: {e}")
                 return jsonify({"error": "Voice Service Error", "details": str(e)}), 500
@@ -558,21 +560,25 @@ def tts_generate():
 def chat_app():
     # Inject username into the UI
     username = current_user.username
+    email = current_user.email
     content = open('index.html', encoding='utf-8').read()
-    return render_template_string(content, username=username)
+    return render_template_string(content, username=username, email=email)
 
 @app.route('/')
 def index():
-    # Provide a landing page for new visitors or return users
-    # But if they logout, they go to welcome.
-    # If they visit root, maybe go to welcome?
-    # User previously asked to skip welcome/login, but that was before logout functionality.
-    # Let's keep it redirected to app for now unless explicitly logged out.
-    return redirect(url_for('chat_app'))
+    # Provide a landing page for new visitors
+    if current_user.is_authenticated:
+        return redirect(url_for('chat_app'))
+    return redirect(url_for('welcome'))
+
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 
 @app.route('/welcome')
 def welcome():
-    return open('welcome.html', encoding='utf-8').read()
+    # Pass some default context if needed
+    return render_template_string(open('welcome.html', encoding='utf-8').read())
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -585,7 +591,8 @@ def login():
             
         username = data.get('username')
         password = data.get('password')
-        user = User.query.filter_by(username=username).first()
+        # Case-insensitive lookup
+        user = User.query.filter(User.username.ilike(username)).first()
         
         if not user:
             return jsonify({"success": False, "message": "User does not exist."}), 401
@@ -609,7 +616,7 @@ def upload_file():
     
     # Check File Quota
     if user_identifier and not check_quota(user_identifier, 'files'):
-        return jsonify({"error": "Daily file limit reached. Try again tomorrow. 📂"}), 403
+        return jsonify({"error": "You've reached your daily limit for file uploads! 📂 We'll refresh your credits tomorrow. See you then!", "code": "QUOTA"}), 403
 
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -656,7 +663,7 @@ def fix_admin_access():
     
     for user in users:
         is_admin_name = user.username.strip().lower() == 'kingnigel'
-        is_target_email = user.email == 'patricknigel33@gmail.com'
+        is_target_email = user.email == 'championsmail18@gmail.com'
         
         if is_admin_name or is_target_email:
             email = user.email
@@ -756,7 +763,7 @@ def signup():
         password = data.get('password')
         email = data.get('email')
         
-        if User.query.filter_by(username=username).first():
+        if User.query.filter(User.username.ilike(username)).first():
             return jsonify({"success": False, "message": "Username already exists."}), 409
         
         if email and User.query.filter_by(email=email).first():
@@ -849,18 +856,20 @@ def chat():
     if not is_premium_quota:
         # Switched to cheaper model
         current_model = "meta-llama/llama-3-8b-instruct:free"
-        alert_msg = "Daily limit reached. Switched to basic model."
+        alert_msg = "Hey! 🌟 We've had such a deep conversation today that I'm moving into 'Reflection Mode' to save some energy. I'm still here for you, just a little more focused! We'll be back at full strength tomorrow. ✨"
         
     # 2.5 Rate Limiting Logic (Spam Protection)
     if is_rate_limited(user_identifier):
         return jsonify({"response": "Whoa, take a deep breath! We're moving a bit fast. Give me a moment to catch up. 🌿"})
 
     # 3. Language Preference Sync
-    # If the user has selected the Pidgin VOICE, automatically switch language mode to Pidgin.
+    explicit_lang = data.get('language')
     selected_voice_id = data.get('voice_id')
     lower_input = user_input.lower()
-    
-    if selected_voice_id in VOICE_TO_LANG:
+
+    if explicit_lang:
+        USER_LANGUAGES[user_identifier] = explicit_lang
+    elif selected_voice_id in VOICE_TO_LANG:
         USER_LANGUAGES[user_identifier] = VOICE_TO_LANG[selected_voice_id]
     elif selected_voice_id and 'premium' in selected_voice_id: # Fallback custom
         USER_LANGUAGES[user_identifier] = 'english'

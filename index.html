@@ -8,53 +8,43 @@
     <title>EQ - Your Emotional Companion</title>
     <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
     <link rel="stylesheet" href="/static/eq_style.css">
+    <link rel="manifest" href="/static/manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        // Check if running as a standalone app
+        window.isAppInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('SW Registered', reg))
+                    .catch(err => console.log('SW Error', err));
+            });
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        /* Enhanced Welcome Screen Styles */
-        .welcome-glass {
-            background: rgba(20, 20, 20, 0.4);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 30px;
-            padding: 3rem;
-            max-width: 90%;
-            width: 400px;
-            margin: auto;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            transition: transform 0.3s ease;
-        }
-
-        .welcome-avatar {
-            width: 100px;
-            height: 100px;
-            background: radial-gradient(circle, rgba(212, 175, 55, 0.2), #000);
-            border: 2px solid rgba(212, 175, 55, 0.5);
-            border-radius: 50%;
-            margin: 0 auto 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            font-weight: 700;
-            color: #D4AF37;
-            box-shadow: 0 0 40px rgba(212, 175, 55, 0.2);
-            animation: pulse-glow 3s infinite ease-in-out;
-        }
-
-        @keyframes pulse-glow {
-
-            0%,
-            100% {
-                box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+        @keyframes pulse-gold {
+            0% {
                 transform: scale(1);
+                text-shadow: 0 0 5px var(--primary);
             }
 
             50% {
-                box-shadow: 0 0 60px rgba(212, 175, 55, 0.4);
-                transform: scale(1.05);
+                transform: scale(1.15);
+                text-shadow: 0 0 25px var(--primary);
             }
+
+            100% {
+                transform: scale(1);
+                text-shadow: 0 0 5px var(--primary);
+            }
+        }
+
+        .install-ready {
+            animation: pulse-gold 2s infinite;
+            color: var(--primary) !important;
+            filter: drop-shadow(0 0 8px var(--primary));
         }
 
         /* RTL Overrides for International Support */
@@ -82,25 +72,44 @@
     <div class="bg-overlay"></div>
     <div class="chat-container">
         <header class="chat-header">
-            <span class="logo-text">EQ</span>
-            <div style="display:flex; gap:15px; align-items:center;">
-
+            <span class="logo-text" id="logoInstall" title="Download EQ App" style="cursor: pointer;">EQ</span>
+            <div class="header-actions">
+                <button class="settings-toggle-btn" onclick="toggleVoiceSettings()" title="Settings">⚙️</button>
+                <a href="#" class="logout-link" onclick="sendFeedback(); return false;">Feedback</a>
                 <a href="/logout" class="logout-link" onclick="localStorage.removeItem('eq_user_id');">Logout</a>
             </div>
         </header>
 
+        <div class="voice-settings-panel" id="voiceSettingsPanel">
+            <div class="settings-header">
+                <span>Preferences</span>
+                <button onclick="toggleVoiceSettings()"
+                    style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Language</span>
+                <select id="langSelect" onchange="changeLanguage(this.value)">
+                    <option value="en">English (US)</option>
+                    <option value="pcm">Nigerian Pidgin</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                    <option value="de">Deutsch</option>
+                    <option value="ja">日本語</option>
+                    <option value="zh">中文</option>
+                    <option value="ar">العربية</option>
+                </select>
+            </div>
+        </div>
+
         <div class="chat-messages" id="chat-messages">
             <div class="welcome-container" id="welcomeScreen">
                 <div class="welcome-glass">
-                    <div class="welcome-avatar">EQ</div>
+                    <img src="/static/RAE-removebg-preview.png" class="logo-image" alt="EQ Logo">
                     <div class="welcome-title">Hello, {{ username }}</div>
-                    <div class="welcome-subtitle">I'm EQ. Your personal companion. How are you feeling today?</div>
-                    <button class="main-call-btn" onclick="startVoiceCall()" style="margin: 2rem auto 0;">
-                        <svg viewBox="0 0 24 24">
-                            <path
-                                d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" />
-                        </svg>
-                        Start Voice Chat
+                    <div class="welcome-subtitle">I'm EQ, your personal companion. How are you feeling today?</div>
+                    <button class="main-call-btn" id="welcomeInstallBtn"
+                        style="margin-top: 20px; background: var(--primary); color: #000; border: none; padding: 12px 24px; border-radius: 30px; font-weight: bold; cursor: pointer; display: none;">
+                        Download EQ App 📲
                     </button>
                 </div>
             </div>
@@ -148,12 +157,7 @@
     </div>
 
     <!-- Voice Overlay -->
-    <button id="fabCallBtn" class="fab-call-btn" title="Start Voice Call" onclick="startVoiceCall()">
-        <svg viewBox="0 0 24 24">
-            <path
-                d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z" />
-        </svg>
-    </button>
+    <!-- Removed FAB Call Button as requested -->
 
     <!-- Voice Overlay -->
     <div class="voice-overlay" id="voiceOverlay">
@@ -165,34 +169,6 @@
             </svg>
         </button>
         <button class="voice-settings-btn" onclick="toggleVoiceSettings()">⚙️</button>
-
-        <div class="voice-settings-panel" id="voiceSettingsPanel">
-            <div class="settings-row">
-                <span class="settings-label">Interface Language</span>
-                <select id="langSelect" onchange="changeLanguage(this.value)">
-                    <option value="en">English</option>
-                    <option value="es">Español</option>
-                    <option value="fr">Français</option>
-                    <option value="de">Deutsch</option>
-                    <option value="ja">日本語</option>
-                    <option value="zh">中文</option>
-                    <option value="ar">العربية</option>
-                </select>
-            </div>
-            <div class="settings-row">
-                <span class="settings-label">Voice</span>
-                <select id="voiceSelect"></select>
-            </div>
-            <div class="settings-row">
-                <span class="settings-label">Speed: <span id="rateValue">1.0</span></span>
-                <input type="range" id="rateRange" min="0.5" max="2" step="0.1" value="1">
-            </div>
-            <div class="settings-row">
-                <span class="settings-label">Pitch: <span id="pitchValue">1.0</span></span>
-                <input type="range" id="pitchRange" min="0.5" max="2" step="0.1" value="1">
-            </div>
-            <button class="test-voice-btn" onclick="testVoice()" data-i18n="test_voice">Test Voice</button>
-        </div>
 
         <div class="voice-status" id="voiceStatus">Listening...</div>
 
@@ -249,13 +225,8 @@
         const fileIndicator = document.getElementById('fileIndicator');
         const fileNameSpan = document.getElementById('fileName');
         const welcomeScreen = document.getElementById('welcomeScreen');
-        const voiceSelect = document.getElementById('voiceSelect');
-        const rateRange = document.getElementById('rateRange');
-        const pitchRange = document.getElementById('pitchRange');
+        const langSelect = document.getElementById('langSelect');
         const voiceSettingsPanel = document.getElementById('voiceSettingsPanel');
-        const rateValueDisplay = document.getElementById('rateValue');
-        const pitchValueDisplay = document.getElementById('pitchValue');
-        // const voiceCallBtn = document.getElementById('voiceCallBtn');
         const voiceOverlay = document.getElementById('voiceOverlay');
         const voiceStatus = document.getElementById('voiceStatus');
         const voiceVisualizer = document.getElementById('voiceVisualizer');
@@ -389,6 +360,24 @@
                 quota: "تم الوصول إلى الحد",
                 access_denied: "تم رفض الوصول للميكروفون",
                 tap_to_speak: "اضغط للدائرة للتحدث"
+            },
+            pcm: {
+                welcome: "Afa, {{username}}",
+                subtitle: "I be your EQ friend. How you dey feel today?",
+                start_voice: "Start Voice Chat",
+                type_placeholder: "Type message for here...",
+                listening: "I dey listen...",
+                mic_listening: "I dey listen... (Click mic to stop)",
+                mic_default: "Talk to EQ...",
+                speaking: "EQ dey talk...",
+                muted: "Muted",
+                resuming: "I dey come back...",
+                thinking: "I dey tink...",
+                end_call: "End Call",
+                test_voice: "Test Voice",
+                quota: "Quota Don Finish",
+                access_denied: "Mic no gree work",
+                tap_to_speak: "Tap circle to talk"
             }
         };
 
@@ -431,6 +420,43 @@
             updateUIText();
         }
 
+        // --- Feedback Function ---
+        function sendFeedback() {
+            Swal.fire({
+                title: 'Share Your Thoughts',
+                text: "EQ loves hearing from you. What's on your mind?",
+                input: 'textarea',
+                inputPlaceholder: 'Type your feedback here...',
+                showCancelButton: true,
+                confirmButtonText: 'Send to EQ',
+                confirmButtonColor: 'var(--primary)',
+                cancelButtonColor: '#333',
+                background: '#111',
+                color: '#fff',
+                customClass: {
+                    input: 'swal-custom-textarea'
+                }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    const feedback = result.value;
+                    const recipient = 'championsmail18@gmail.com';
+                    const userEmail = '{{ email }}';
+                    const subject = encodeURIComponent('EQ App Feedback from {{ username }}');
+                    const body = encodeURIComponent(`From: ${userEmail}\n\nFeedback:\n${feedback}`);
+                    window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
+                    Swal.fire({
+                        title: 'Thank You!',
+                        text: 'Your feedback makes EQ better.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        background: '#111',
+                        color: '#fff'
+                    });
+                }
+            });
+        }
+
         // --- Voice Logic ---
         const voiceOptions = [
             { name: "English (Male)", id: "male-premium", type: "premium", locale: "en-US" },
@@ -450,56 +476,12 @@
             { name: "العربية (امرأة)", id: "ar-SA-Female", type: "premium", locale: "ar-SA" },
         ];
 
-        function populateVoiceList() {
-            voiceSelect.innerHTML = '';
-            voiceOptions.forEach(v => {
-                const option = document.createElement('option');
-                option.textContent = v.name;
-                option.setAttribute('data-id', v.id);
-                option.setAttribute('data-type', v.type);
-                option.setAttribute('data-locale', v.locale || 'en-US');
-                voiceSelect.appendChild(option);
-            });
+        // Language handling
+        langSelect.addEventListener('change', () => {
+            currentLang = langSelect.value;
+            localStorage.setItem('eq_lang', currentLang);
+            updateI18N();
 
-            // Init Language
-            const langSelect = document.getElementById('langSelect');
-            if (langSelect) {
-                langSelect.value = currentLang;
-                updateUIText();
-            }
-
-            // Restore selection
-            const savedId = localStorage.getItem('eq_selected_voice_id');
-            if (savedId) {
-                const option = Array.from(voiceSelect.options).find(o => o.getAttribute('data-id') === savedId);
-                if (option) option.selected = true;
-            } else {
-                voiceSelect.selectedIndex = 0;
-            }
-
-            updateVoiceControls();
-        }
-
-        function updateVoiceControls() {
-            const selectedOption = voiceSelect.selectedOptions[0];
-            const type = selectedOption ? selectedOption.getAttribute('data-type') : 'premium';
-
-            // Hide Pitch control for Premium voices (not supported by HTML5 Audio)
-            if (type === 'premium') {
-                pitchRange.parentElement.style.display = 'none';
-            } else {
-                pitchRange.parentElement.style.display = 'block';
-            }
-        }
-
-        voiceSelect.addEventListener('change', () => {
-            const selectedOption = voiceSelect.selectedOptions[0];
-            const type = selectedOption.getAttribute('data-type');
-            const id = type === 'premium' ? selectedOption.getAttribute('data-id') : selectedOption.getAttribute('data-name');
-            localStorage.setItem('eq_selected_voice_id', id);
-            updateVoiceControls();
-
-            // Restart listening to apply new language immediately
             if (isVoiceCallActive && recognition) {
                 try { recognition.stop(); } catch (e) { }
                 voiceStatus.innerText = "Switching language...";
@@ -507,84 +489,54 @@
             }
         });
 
-        rateRange.addEventListener('input', () => { rateValueDisplay.innerText = rateRange.value; });
-        pitchRange.addEventListener('input', () => { pitchValueDisplay.innerText = pitchRange.value; });
-
         function toggleVoiceSettings() {
             voiceSettingsPanel.classList.toggle('active');
-            if (voiceSettingsPanel.classList.contains('active')) {
-                voiceSettingsPanel.style.display = 'flex';
-            } else {
-                voiceSettingsPanel.style.display = 'none';
-            }
+            voiceSettingsPanel.style.display = voiceSettingsPanel.classList.contains('active') ? 'flex' : 'none';
         }
-
-        window.testVoice = function () {
-            speak("This is how I sound.", null, true);
-        };
 
         window.toggleMute = function () {
             isMuted = !isMuted;
             const btn = document.getElementById('muteBtn');
             const visualizer = document.getElementById('voiceVisualizer');
-
             if (isMuted) {
-                // MUTE ON
-                clearTimeout(silenceTimer); // Stop auto-send
-                savedTranscript = userInput.value.trim(); // Save what we have so far
+                clearTimeout(silenceTimer);
+                savedTranscript = userInput.value.trim();
                 btn.classList.add('muted');
-                visualizer.classList.add('muted'); // Add visual feedback to center circle
-                // Change Icon to Muted
+                visualizer.classList.add('muted');
                 btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l2.97 2.97c-.85.35-1.76.57-2.73.57-3.01 0-5.5-2.45-5.5-5.5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c.57-.08 1.12-.24 1.64-.46L19.73 22 21 20.73 4.27 3z"/></svg>`;
-                voiceStatus.innerText = MESSAGES_I18N[currentLang].muted;
+                voiceStatus.innerText = (MESSAGES_I18N[currentLang] || MESSAGES_I18N.en).muted;
                 voiceVisualizer.style.opacity = '0.3';
                 if (recognition) recognition.stop();
             } else {
-                // MUTE OFF
                 btn.classList.remove('muted');
                 visualizer.classList.remove('muted');
-                // Change Icon to Unmuted
                 btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 3.01-2.44 5.5-5.5 5.5S6 14.01 6 11H4c0 3.53 2.61 6.43 6 6.92V21h4v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>`;
-                voiceStatus.innerText = MESSAGES_I18N[currentLang].resuming;
+                voiceStatus.innerText = (MESSAGES_I18N[currentLang] || MESSAGES_I18N.en).resuming;
                 voiceVisualizer.style.opacity = '1';
-                // Small delay and resume
                 setTimeout(startListening, 300);
             }
         };
 
-        window.activateVoiceOnMobile = function () {
-            if (!isVoiceCallActive) return;
-            const status = voiceStatus.innerText;
-            if (status !== "Listening..." && status !== "..." && !status.includes("Speaking")) {
-                try { recognition.stop(); } catch (e) { }
-                window.speechSynthesis.cancel();
-                startListening();
-            }
+        function startListening() {
+            if (!recognition || isMuted) return;
+            try {
+                const localeMap = { 'pcm': 'en-NG', 'es': 'es-ES', 'fr': 'fr-FR', 'de': 'de-DE', 'ja': 'ja-JP', 'zh': 'zh-CN', 'ar': 'ar-SA' };
+                recognition.lang = localeMap[currentLang] || 'en-US';
+                if (window.speechSynthesis) { window.speechSynthesis.pause(); window.speechSynthesis.resume(); }
+                recognition.start();
+                voiceStatus.innerText = (MESSAGES_I18N[currentLang] || MESSAGES_I18N.en).listening;
+                voiceVisualizer.style.opacity = '1';
+                voiceVisualizer.classList.remove('speaking');
+            } catch (e) { }
+        }
+
+
+
+        window.testVoice = function () {
+            speak("This is how I sound.", null, true);
         };
 
-        function startListening() {
-            if (!recognition) return;
-            try {
-                if (isMuted) return; // Do not start if muted
 
-                // Dynamic Language Selection
-                const selected = voiceSelect.selectedOptions[0];
-                const locale = selected ? selected.getAttribute('data-locale') : 'en-US';
-                recognition.lang = locale;
-
-                if (window.speechSynthesis) {
-                    window.speechSynthesis.pause();
-                    window.speechSynthesis.resume();
-                }
-                recognition.start();
-                voiceStatus.innerText = MESSAGES_I18N[currentLang].listening;
-                voiceVisualizer.style.opacity = '1';
-                voiceSendBtn.style.display = 'flex';
-                voiceVisualizer.classList.remove('speaking');
-            } catch (e) {
-                console.log("Recognition start error:", e);
-            }
-        }
 
         function speak(text, onEndCallback, isTest) {
             if (currentAudio) { currentAudio.pause(); currentAudio = null; }
@@ -600,9 +552,8 @@
                 .replace(/!\[.*?\]\(.*?\)/g, ' I have generated an image. ')
                 .replace(/\[DOWNLOAD:.*?\]/g, ' File ready. ');
 
-            const selectedOption = voiceSelect.selectedOptions[0];
-            const type = selectedOption ? selectedOption.getAttribute('data-type') : 'premium';
-            const voiceId = selectedOption ? selectedOption.getAttribute('data-id') : 'male-premium';
+            const type = 'premium';
+            const voiceId = currentLang === 'pcm' ? 'pcm-premium' : 'male-premium';
 
             if (type === 'premium') {
                 // Server-Side Edge TTS
@@ -635,7 +586,7 @@
                     .then(blob => {
                         const audioUrl = URL.createObjectURL(blob);
                         currentAudio = new Audio(audioUrl);
-                        currentAudio.playbackRate = parseFloat(rateRange.value) || 1.0;
+                        currentAudio.playbackRate = 1.0;
 
                         currentAudio.onplay = () => {
                             if (isVoiceCallActive || isTest) {
@@ -686,8 +637,7 @@
             const utterance = new SpeechSynthesisUtterance(text);
             voiceCallUtterance = utterance;
 
-            const selectedOption = voiceSelect.selectedOptions[0];
-            const gender = selectedOption ? selectedOption.getAttribute('data-id') : 'male';
+            const gender = currentLang === 'pcm' ? 'male' : 'neutral';
 
             let targetVoice = null;
             if (gender === 'female') {
@@ -703,8 +653,8 @@
             if (targetVoice) utterance.voice = targetVoice;
             else utterance.voice = voices.find(v => v.lang.startsWith('en')) || voices[0];
 
-            utterance.rate = parseFloat(rateRange.value);
-            utterance.pitch = parseFloat(pitchRange.value);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
 
             utterance.onstart = () => {
                 if (isVoiceCallActive || isTest) {
@@ -911,6 +861,7 @@
 
         function parseMarkdown(text) {
             let html = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--primary); text-decoration:underline;">$1</a>');
             html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             html = html.replace(/```([\s\S]*?)```/g, '<pre>$1</pre>');
             html = html.replace(/\[DOWNLOAD:\s*([^\]]+)\]/g, (match, filename) => {
@@ -1093,6 +1044,13 @@
         function showTyping() {
             const typingDiv = document.createElement('div');
             typingDiv.className = 'typing-indicator';
+
+            const t = MESSAGES_I18N[currentLang] || MESSAGES_I18N.en;
+            const textSpan = document.createElement('span');
+            textSpan.className = 'typing-text';
+            textSpan.innerText = t.thinking || 'Thinking';
+            typingDiv.appendChild(textSpan);
+
             for (let i = 0; i < 3; i++) {
                 const dot = document.createElement('div');
                 dot.className = 'typing-dot';
@@ -1100,6 +1058,11 @@
             }
             chatMessages.appendChild(typingDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Addiction: Breath the logo while thinking
+            const welcomeLogo = document.querySelector('.logo-image');
+            if (welcomeLogo) welcomeLogo.style.animation = 'float 2s ease-in-out infinite, shine 2s linear infinite';
+
             return typingDiv;
         }
 
@@ -1117,8 +1080,8 @@
                     userId = 'guest_' + Math.random().toString(36).substr(2, 9);
                     localStorage.setItem('eq_user_id', userId);
                 }
-                const selectedOption = voiceSelect.selectedOptions[0];
-                const currentVoiceId = selectedOption ? selectedOption.getAttribute('data-id') : 'male-premium';
+                // Voice logic simplified
+                const currentVoiceId = currentLang === 'pcm' ? 'pcm-premium' : 'male-premium';
 
                 const res = await fetch('/chat', {
                     method: 'POST',
@@ -1126,7 +1089,8 @@
                     body: JSON.stringify({
                         message: prompt,
                         user_id: userId,
-                        voice_id: currentVoiceId,  // Send voice ID to sync language
+                        voice_id: currentVoiceId,
+                        language: currentLang === 'pcm' ? 'pidgin' : (currentLang === 'en' ? 'english' : currentLang),
                         local_time: new Date().toLocaleString()
                     })
                 });
@@ -1138,6 +1102,11 @@
                 const data = await res.json();
 
                 if (typingIndicator.parentNode) chatMessages.removeChild(typingIndicator);
+
+                // Logo back to normal
+                const welcomeLogo = document.querySelector('.logo-image');
+                if (welcomeLogo) welcomeLogo.style.animation = 'float 4s ease-in-out infinite';
+
                 if (data.alert) alert(data.alert);
 
                 addEQMessage(data.response);
@@ -1152,6 +1121,8 @@
                 }
             } catch (error) {
                 if (typingIndicator.parentNode) chatMessages.removeChild(typingIndicator);
+                const welcomeLogo = document.querySelector('.logo-image');
+                if (welcomeLogo) welcomeLogo.style.animation = 'float 4s ease-in-out infinite';
                 console.error("Chat Error:", error);
                 addEQMessage("Hey — I'm having trouble connecting to the cloud right now ☁️ (" + error.message + ")");
             }
@@ -1246,28 +1217,68 @@
             fileIndicator.classList.remove('active');
         };
 
-        // --- Init ---
+        // --- PWA Installation Logic ---
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const logo = document.getElementById('logoInstall');
+            if (logo) logo.classList.add('install-ready');
+            const welcomeInstallBtn = document.getElementById('welcomeInstallBtn');
+            if (welcomeInstallBtn) welcomeInstallBtn.style.display = 'inline-block';
+        });
+
         window.addEventListener('load', () => {
-            populateVoiceList();
+            const logoInstall = document.getElementById('logoInstall');
+            const welcomeInstallBtn = document.getElementById('welcomeInstallBtn');
+
+            const triggerInstall = async () => {
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                if (isStandalone) {
+                    Swal.fire({ title: 'EQ App', text: 'You\'re already using the app! 🚀', icon: 'success', confirmButtonColor: 'var(--primary)', background: '#111', color: '#fff' });
+                    return;
+                }
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        deferredPrompt = null;
+                        if (logoInstall) logoInstall.classList.remove('install-ready');
+                    }
+                } else {
+                    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    const msg = isIOS
+                        ? "Tap the <b>Share icon</b> 📤 and pick <b>'Add to Home Screen'</b> to install EQ!"
+                        : "Look for the <b>Install Icon</b> (🖥️ or ➕) in your browser's <b>Address Bar</b> at the top right!<br><br>Or click 'Install' in your browser's three-dot menu! 💻";
+
+                    Swal.fire({
+                        title: 'How to Download EQ',
+                        html: msg,
+                        icon: 'info',
+                        confirmButtonText: 'Got it!',
+                        confirmButtonColor: 'var(--primary)',
+                        background: '#111',
+                        color: '#fff'
+                    });
+                }
+            };
+
+            if (logoInstall) logoInstall.addEventListener('click', triggerInstall);
+            if (welcomeInstallBtn) welcomeInstallBtn.addEventListener('click', triggerInstall);
+
             // Initial FAB check
             const fab = document.getElementById('fabCallBtn');
             const hasText = userInput.value.trim().length > 0;
             if (fab && hasText) fab.classList.add('visible');
         });
-        // Fallback safety
-        setTimeout(populateVoiceList, 1000);
 
         function startTypingEffect(text, durationSeconds) {
             if (!voiceTranscript) return;
             voiceTranscript.innerText = "";
             clearInterval(typingInterval);
-
-            // Calculate delay per char
-            // Ensure reasonable minimum duration logic
             const safeDuration = durationSeconds > 0 ? durationSeconds : 3;
             const totalTime = safeDuration * 1000;
             const charDelay = totalTime / text.length;
-
             let i = 0;
             typingInterval = setInterval(() => {
                 if (i < text.length) {

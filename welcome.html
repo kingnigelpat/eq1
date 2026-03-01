@@ -4,151 +4,428 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to EQ</title>
+    <title>EQ - Your Emotional Companion</title>
     <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
     <link rel="stylesheet" href="/static/eq_style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        let deferredPrompt;
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const logo = document.getElementById('logoInstall');
+            if (logo) logo.classList.add('install-ready');
+        });
+
+        window.addEventListener('load', () => {
+            const logoInstall = document.getElementById('logoInstall');
+            if (logoInstall) {
+                logoInstall.addEventListener('click', async () => {
+                    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                    if (isStandalone) {
+                        Swal.fire({ title: 'EQ App', text: "You're already using the app! 🚀", icon: 'success', confirmButtonColor: '#ffcc00', background: '#111', color: '#fff' });
+                        return;
+                    }
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        if (outcome === 'accepted') {
+                            deferredPrompt = null;
+                            if (logoInstall) logoInstall.classList.remove('install-ready');
+                        }
+                    } else {
+                        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                        const msg = isIOS
+                            ? "Tap <b>Share icon</b> 📤 and pick <b>'Add to Home Screen'</b>!"
+                            : "Look for the <b>Install Icon</b> (🖥️ or ➕) in your browser's <b>Address Bar</b> at the top right! 💻";
+
+                        Swal.fire({
+                            title: 'How to Download EQ',
+                            html: msg,
+                            icon: 'info',
+                            confirmButtonColor: '#ffcc00',
+                            background: '#111',
+                            color: '#fff'
+                        });
+                    }
+                });
+            }
+        });
+    </script>
     <style>
-        body {
-            /* Override eq_style.css defaults if needed */
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            text-align: center;
-            display: block;
-            /* eq_style sets flex column, which is fine, but we need formatting */
-            /* Ensure background is transparent so animation shows */
-            background: transparent;
-        }
-
-        /* Ensure specific container styling for welcome page */
-        .welcome-content-container {
-            max-width: 600px;
-            padding: 2rem;
-            margin: 0 auto;
-            position: relative;
-            z-index: 1;
-            /* Above overlay */
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .logo-image {
-            width: 150px;
-            height: auto;
-            margin: 0 auto 2rem;
-            filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.4));
-            animation: float 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
+        @keyframes pulse-gold {
             0% {
-                transform: translateY(0px);
+                transform: scale(1);
+                text-shadow: 0 0 5px #ffcc00;
             }
 
             50% {
-                transform: translateY(-10px);
+                transform: scale(1.1);
+                text-shadow: 0 0 20px #ffcc00;
             }
 
             100% {
-                transform: translateY(0px);
+                transform: scale(1);
+                text-shadow: 0 0 5px #ffcc00;
             }
         }
 
-        h1 {
-            font-size: 3rem;
-            color: #D4AF37;
-            margin-bottom: 0.5rem;
+        .install-ready {
+            animation: pulse-gold 2s infinite;
+            color: #ffcc00 !important;
         }
 
-        .subtitle {
-            font-size: 1.2rem;
-            color: #ccc;
-            margin-bottom: 3rem;
+        html,
+        body {
+            height: auto !important;
+            overflow-y: auto !important;
+            display: block !important;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            overflow-x: hidden;
+            text-align: left;
+        }
+
+        .landing-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        nav {
+            height: 80px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--primary);
+            font-weight: 800;
+            font-size: 1.5rem;
+            letter-spacing: -1px;
+        }
+
+        .nav-logo img {
+            height: 40px;
+            width: auto;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .hero {
+            padding: 100px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4rem;
+        }
+
+        .hero-content {
+            flex: 1;
+            max-width: 600px;
+        }
+
+        .hero-tagline {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(230, 190, 138, 0.1);
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(230, 190, 138, 0.2);
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            line-height: 1.05;
+            letter-spacing: -3px;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #fff, var(--primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 2.5rem;
             line-height: 1.6;
         }
 
-        .btn-group {
+        .hero-visual {
+            flex: 1;
             display: flex;
-            gap: 1rem;
             justify-content: center;
-            margin-bottom: 3rem;
+            align-items: center;
+            position: relative;
         }
 
-        .btn {
-            padding: 12px 30px;
-            border-radius: 25px;
-            text-decoration: none;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            font-size: 1.1rem;
+        .floating-orb {
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle at 30% 30%, var(--primary), transparent),
+                radial-gradient(circle at 70% 70%, #6366f1, transparent);
+            filter: blur(60px);
+            opacity: 0.4;
+            border-radius: 50%;
+            animation: orbFloat 10s ease-in-out infinite alternate;
         }
 
-        .btn-primary {
-            background-color: #D4AF37;
+        @keyframes orbFloat {
+            0% {
+                transform: scale(1) translate(0, 0);
+            }
+
+            100% {
+                transform: scale(1.2) translate(5%, 5%);
+            }
+        }
+
+        .hero-img {
+            position: absolute;
+            width: 250px;
+            height: auto;
+            filter: drop-shadow(0 0 30px var(--primary-glow));
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .features {
+            padding: 100px 0;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .feature-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 2.5rem;
+            border-radius: 24px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .feature-box:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+        }
+
+        .feature-box h3 {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-box p {
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .footer {
+            padding: 50px 0;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.85rem;
+        }
+
+        .cta-btn {
+            display: inline-block;
+            padding: 16px 40px;
+            background: var(--primary);
             color: #000;
-            border: 2px solid #D4AF37;
+            text-decoration: none;
+            font-weight: 700;
+            border-radius: 40px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 30px var(--primary-glow);
         }
 
-        .btn-primary:hover {
-            background-color: #AA8C2C;
-            border-color: #AA8C2C;
-            transform: translateY(-2px);
+        .cta-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px var(--primary-glow);
         }
 
-        .btn-outline {
-            background-color: transparent;
-            color: #D4AF37;
-            border: 2px solid #D4AF37;
+        .cta-btn-nav {
+            background: var(--primary);
+            color: #000;
+            padding: 10px 24px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
         }
 
-        .btn-outline:hover {
-            background-color: rgba(212, 175, 55, 0.1);
-            transform: translateY(-2px);
+        .cta-btn-nav:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
         }
 
-        .disclaimer {
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 2rem;
-            border-top: 1px solid #333;
-            padding-top: 1rem;
-            max-width: 400px;
-            margin-left: auto;
-            margin-right: auto;
+        @media (max-width: 900px) {
+            .hero {
+                flex-direction: column;
+                text-align: center;
+                padding: 60px 0;
+                gap: 2rem;
+            }
+
+            .hero h1 {
+                font-size: clamp(2.5rem, 10vw, 3.5rem);
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+                padding: 40px 0;
+            }
+
+            .hero-visual {
+                order: -1;
+                /* Show image above text on mobile */
+                margin-bottom: 2rem;
+            }
+
+            .hero-img {
+                width: 150px;
+                position: relative;
+                /* Remove absolute for column flow */
+            }
+
+            .floating-orb {
+                display: none;
+                /* Hide background orb to focus on logo */
+            }
+
+            .hero-content {
+                max-width: 100%;
+            }
+
+            nav {
+                height: 70px;
+            }
         }
 
-        /* Main Call Button on Welcome specific logic provided previously logic was in eq_ui... 
-           Since this is a simple HTML page, we don't have JS here to start calls unless we link it.
-           But the user asked for "Voice chat with AI" text.
-        */
+        @media (max-width: 600px) {
+            .nav-links a:first-child {
+                display: none;
+                /* Hide 'Login' text to save space, button remains */
+            }
+
+            .hero h1 {
+                font-size: 2.2rem;
+                letter-spacing: -1px;
+            }
+
+            .hero p {
+                font-size: 1.1rem;
+            }
+
+            .feature-box {
+                padding: 1.5rem;
+            }
+
+            .cta-btn {
+                width: 100%;
+                text-align: center;
+                padding: 14px 20px;
+            }
+        }
     </style>
 </head>
 
 <body>
-    <!-- Background Animation (from eq_style.css) -->
     <div class="bg-animation"></div>
     <div class="bg-overlay"></div>
 
-    <div class="welcome-content-container">
-        <!-- Rae Logo -->
-        <img src="/static/RAE-removebg-preview.png" alt="RAE Logo" class="logo-image">
+    <div class="landing-container">
+        <nav>
+            <a href="/" class="nav-logo">
+                <img src="/static/RAE-removebg-preview.png" alt="RAE">
+                <span id="logoInstall" style="cursor: pointer;">EQ</span>
+            </a>
+            <div class="nav-links">
+                <a href="/login">Login</a>
+                <a href="/signup" class="cta-btn-nav">Get Started</a>
+            </div>
+        </nav>
 
-        <h1>EQ</h1>
-        <p class="subtitle">
-            Your emotional companion.<br>
-            Voice chat with AI to express how you feel.
-        </p>
+        <section class="hero">
+            <div class="hero-content">
+                <div class="hero-tagline">By Rae Hub Tech Company</div>
+                <h1>More than an AI. A companion.</h1>
+                <p>
+                    EQ is your private emotional space. Connect with an AI that listens, remembers,
+                    and truly understands you. Whether you need to vent, celebrate, or just talk,
+                    EQ is always here.
+                </p>
+                <a href="/signup" class="cta-btn">Start Talking to EQ</a>
+            </div>
+            <div class="hero-visual">
+                <div class="floating-orb"></div>
+                <img src="/static/RAE-removebg-preview.png" alt="EQ Logo" class="hero-img">
+            </div>
+        </section>
 
-        <div class="btn-group">
-            <a href="/login" class="btn btn-primary">Login</a>
-            <a href="/signup" class="btn btn-outline">Sign Up</a>
-        </div>
+        <section class="features">
+            <div class="feature-box">
+                <h3>True Empathy</h3>
+                <p>EQ doesn't just process text. It mirrors your vibe. Whether you're hyped or having a rough day, EQ
+                    meets you where you are.</p>
+            </div>
+            <div class="feature-box">
+                <h3>24/7 Support</h3>
+                <p>No schedules, no judgment. EQ is always in your pocket, ready to listen and support you whenever you
+                    need it, day or night.</p>
+            </div>
+            <div class="feature-box">
+                <h3>Private & Secure</h3>
+                <p>Your conversations are for your eyes only. We believe your emotional space should be the safest place
+                    on the internet.</p>
+            </div>
+        </section>
 
-        <p class="disclaimer">
-            <strong>Privacy Notice:</strong> This is a real-time chat service.
-            Conversations are temporary and not permanently stored.
-        </p>
+        <footer class="footer">
+            &copy; 2026 Rae Hub Tech Company. All Rights Reserved.<br>
+            Visit us at <a href="https://www.raehub.live" style="color: var(--primary);">www.raehub.live</a>
+        </footer>
     </div>
 </body>
 

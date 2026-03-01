@@ -7,6 +7,14 @@
     <title>Login - EQ</title>
     <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
     <link rel="stylesheet" href="/static/eq_style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js');
+            });
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body {
@@ -26,21 +34,20 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: -1;
-            background: url('/static/background_static.jpg') no-repeat center center;
+            z-index: -2;
+            background: url('/static/ethereal_aurora_bg.png') no-repeat center center;
             background-size: cover;
-            animation: kenburns 30s ease-in-out infinite alternate;
-            filter: brightness(0.4);
+            filter: brightness(0.6) saturate(1.2);
         }
 
-        @keyframes kenburns {
-            0% {
-                transform: scale(1);
-            }
-
-            100% {
-                transform: scale(1.15);
-            }
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at 50% 50%, transparent, #020617);
         }
 
         .login-container {
@@ -69,20 +76,11 @@
             }
         }
 
-        .avatar {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(0, 0, 0, 0));
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            color: #D4AF37;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 1.5rem;
+        .logo-image {
+            width: 120px;
+            height: auto;
             margin: 0 auto 1.5rem;
-            box-shadow: 0 0 30px rgba(212, 175, 55, 0.1);
+            filter: drop-shadow(0 0 15px var(--primary-glow));
         }
 
         h2 {
@@ -135,9 +133,9 @@
         }
 
         input:focus {
-            border-color: #D4AF37;
+            border-color: var(--primary);
             background: rgba(0, 0, 0, 0.6);
-            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1);
+            box-shadow: 0 0 0 4px var(--primary-glow);
         }
 
         input::placeholder {
@@ -147,7 +145,7 @@
         button {
             width: 100%;
             padding: 14px;
-            background: #D4AF37;
+            background: var(--primary);
             color: #000;
             border: none;
             border-radius: 12px;
@@ -155,7 +153,7 @@
             font-size: 1rem;
             cursor: pointer;
             margin-top: 1rem;
-            transition: transform 0.2s, background 0.2s;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         button:hover {
@@ -200,7 +198,7 @@
         }
 
         div:where(.swal2-confirm) {
-            background-color: #D4AF37 !important;
+            background-color: var(--primary) !important;
             color: #000 !important;
             border-radius: 10px !important;
             font-weight: 600 !important;
@@ -210,9 +208,10 @@
 
 <body>
     <div class="bg-animation"></div>
+    <div class="bg-overlay"></div>
 
     <div class="login-container">
-        <div class="avatar">EQ</div>
+        <img src="/static/RAE-removebg-preview.png" class="logo-image" alt="EQ Logo">
         <h2>Welcome Back</h2>
         <p class="subtitle">Enter your credentials to access your personal space.</p>
 
@@ -244,7 +243,7 @@
                 inputPlaceholder: 'name@example.com',
                 background: '#111',
                 color: '#fff',
-                confirmButtonColor: '#D4AF37',
+                confirmButtonColor: 'var(--primary)',
                 cancelButtonColor: '#333',
                 showCancelButton: true
             });
@@ -315,7 +314,7 @@
                             showDenyButton: true,
                             confirmButtonText: 'Admin Panel 👑',
                             denyButtonText: 'Chat App 💬',
-                            confirmButtonColor: '#D4AF37',
+                            confirmButtonColor: 'var(--primary)',
                             denyButtonColor: '#333',
                             background: '#111',
                             color: '#fff'
@@ -336,7 +335,7 @@
                             showConfirmButton: false,
                             background: '#111',
                             color: '#fff',
-                            iconColor: '#D4AF37'
+                            iconColor: 'var(--primary)'
                         }).then(() => {
                             window.location.href = result.redirect;
                         });

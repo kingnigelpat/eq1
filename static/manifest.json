@@ -1,0 +1,22 @@
+{
+    "name": "EQ - Your Emotional Companion",
+    "short_name": "EQ",
+    "description": "Your private, empathetic AI companion by Rae Hub Tech Company.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#020617",
+    "theme_color": "#E6BE8A",
+    "icons": [
+        {
+            "src": "/static/RAE-removebg-preview.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/static/RAE-removebg-preview.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

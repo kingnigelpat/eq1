@@ -8,16 +8,21 @@
 }
 
 :root {
-    --primary: #D4AF37;
-    --primary-glow: rgba(212, 175, 55, 0.1);
-    --bg-black: #000000;
-    --bg-dark: #111111;
-    --bg-accent: rgba(26, 26, 26, 0.8);
-    --text-white: #ffffff;
-    --text-gray: #e0e0e0;
-    --text-muted: #666666;
-    --header-height: 60px;
-    /* Added standard spacing for visual consistency if needed, but relying on % is fine */
+    --primary: #E6BE8A;
+    /* Premium Champagne Gold */
+    --primary-glow: rgba(230, 190, 138, 0.3);
+    --secondary: #6366f1;
+    /* Indigo accents */
+    --bg-dark: #020617;
+    /* Deepest Indigo */
+    --bg-surface: rgba(15, 23, 42, 0.6);
+    --bg-accent: rgba(30, 41, 59, 0.7);
+    --text-white: #f8fafc;
+    --text-gray: #94a3b8;
+    --text-muted: #64748b;
+    --header-height: 70px;
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
 }
 
 
@@ -36,12 +41,27 @@ body {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    background: url('/static/background_static.jpg') no-repeat center center;
+    width: 110%;
+    height: 110%;
+    z-index: -2;
+    background: url('/static/ethereal_aurora_bg.png') no-repeat center center;
     background-size: cover;
-    animation: kenburns 20s ease-in-out infinite alternate;
+    filter: brightness(0.6) saturate(1.2) blur(2px);
+    animation: auroraShift 40s ease-in-out infinite alternate;
+}
+
+@keyframes auroraShift {
+    0% {
+        transform: scale(1) translate(0, 0) rotate(0deg);
+    }
+
+    50% {
+        transform: scale(1.1) translate(-2%, -1%) rotate(1deg);
+    }
+
+    100% {
+        transform: scale(1) translate(1%, 2%) rotate(-1deg);
+    }
 }
 
 .bg-overlay {
@@ -51,9 +71,7 @@ body {
     width: 100%;
     height: 100%;
     z-index: -1;
-    background: rgba(0, 0, 0, 0.7);
-    /* Darken for readability */
-    backdrop-filter: blur(3px);
+    background: radial-gradient(circle at 50% 50%, rgba(2, 6, 23, 0.4), var(--bg-dark));
 }
 
 @keyframes kenburns {
@@ -97,33 +115,55 @@ body {
 
 .chat-header {
     flex-shrink: 0;
-    height: auto;
-    min-height: var(--header-height);
-    background-color: rgba(0, 0, 0, 0.9);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    color: var(--primary);
-    padding: 10px 20px;
-    padding-top: max(10px, env(safe-area-inset-top));
-    /* Handle Notch */
+    height: var(--header-height);
+    background: var(--glass-bg);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
+    padding: 0 30px;
+    border-bottom: 1px solid var(--glass-border);
+    position: sticky;
+    top: 0;
     z-index: 100;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .logo-text {
-    font-weight: 600;
-    letter-spacing: 1px;
-    font-size: 1.1rem;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: -2px;
+    text-shadow: 0 0 20px var(--primary-glow);
+}
+
+.header-actions {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.settings-toggle-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.settings-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .logout-link {
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     text-decoration: none;
-    font-size: 0.8rem;
-    transition: color 0.2s;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    padding: 5px;
 }
 
 .logout-link:hover {
@@ -160,9 +200,51 @@ body {
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 40px 20px;
-    animation: fadeIn 0.8s ease-out;
+    padding: 60px 30px;
     height: 100%;
+}
+
+.welcome-glass {
+    padding: 3rem;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 32px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    animation: slideUpFade 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.logo-image {
+    width: 140px;
+    height: auto;
+    margin: 0 auto 2rem;
+    filter: drop-shadow(0 0 15px rgba(230, 190, 138, 0.3));
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes slideUpFade {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .welcome-title {
@@ -208,17 +290,23 @@ body {
 
 .user-message {
     align-self: flex-end;
-    background-color: var(--bg-accent);
-    color: var(--text-white);
+    background: linear-gradient(135deg, var(--primary), #D4AF37);
+    color: #000;
+    font-weight: 500;
     border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 15px rgba(230, 190, 138, 0.2);
+    border: none;
 }
 
 .eq-message {
     align-self: flex-start;
-    color: var(--text-gray);
-    background: transparent;
-    padding-left: 0;
+    color: var(--text-white);
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
     border-bottom-left-radius: 4px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    margin-left: 10px;
 }
 
 .eq-message strong {
@@ -391,28 +479,33 @@ body {
 /* Input Area */
 .chat-input-area {
     flex-shrink: 0;
-    padding: 15px 20px;
-    background-color: rgba(0, 0, 0, 0.95);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: max(15px, env(safe-area-inset-bottom));
+    padding: 20px 25px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-top: 1px solid var(--glass-border);
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
     display: flex;
     align-items: center;
     gap: 15px;
+    z-index: 1000;
 }
 
 .input-wrapper {
     display: flex;
     align-items: center;
     gap: 10px;
-    background-color: var(--bg-accent);
-    padding: 8px 12px;
-    border-radius: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: border-color 0.2s;
+    background-color: rgba(255, 255, 255, 0.04);
+    padding: 8px 16px;
+    border-radius: 30px;
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
     flex: 1;
 }
 
 .input-wrapper:focus-within {
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 20px var(--primary-glow);
     border-color: var(--primary);
 }
 
@@ -422,13 +515,23 @@ body {
     border: none;
     color: var(--text-white);
     font-size: 1rem;
-    padding: 5px;
+    padding: 8px 5px;
     outline: none;
+    transition: all 0.3s ease;
+}
+
+.chat-input:focus {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
 }
 
 .chat-input::placeholder {
     color: var(--text-muted);
     font-size: 0.9rem;
+    transition: opacity 0.3s ease;
+}
+
+.chat-input:focus::placeholder {
+    opacity: 0.4;
 }
 
 .action-button {
@@ -457,21 +560,27 @@ body {
 }
 
 .send-button {
-    background-color: var(--primary);
+    background: var(--primary);
     border: none;
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: transform 0.2s, opacity 0.2s, visibility 0.2s;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     flex-shrink: 0;
+    box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.send-button:hover {
+    transform: scale(1.1) rotate(-8deg);
+    filter: brightness(1.1);
 }
 
 .send-button:active {
-    transform: scale(0.95);
+    transform: scale(0.9);
 }
 
 .send-button svg {
@@ -750,6 +859,20 @@ body {
     display: flex;
 }
 
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-header span {
+    font-weight: 600;
+    color: var(--primary);
+}
+
 .settings-row {
     display: flex;
     flex-direction: column;
@@ -910,132 +1033,54 @@ body {
         height: 24px;
     }
 
-    .voice-call-label {
-        display: none;
-        /* Ensure label is definitely gone */
+}
+
+/* End Mobile Touch Targets */
+
+/* Responsive Design & Device Suitability */
+@media (max-width: 768px) {
+    :root {
+        --header-height: 60px;
     }
 
-    /* Mobile: Always show edit button since hover doesn't exist */
-    .edit-btn {
-        opacity: 0.6;
-        padding: 10px;
-        /* Larger touch target */
+    .chat-header {
+        padding: 0 15px;
     }
 
-    .user-message {
-        padding-right: 40px;
-        /* Ensure text doesn't overlap button */
+    .logo-text {
+        font-size: 1.4rem;
     }
 
-    .edit-btn:active {
-        opacity: 1;
-        transform: translateY(-50%) scale(0.9);
+    .message {
+        max-width: 90%;
+        font-size: 0.9rem;
     }
 
-    /* Mobile: Adjust voice settings panel */
-    .voice-settings-panel {
-        right: 10px;
-        left: 10px;
-        /* Full width minus margins */
-        width: auto;
-        top: 70px;
+    .welcome-glass {
+        padding: 2rem 1.5rem;
+        margin: 0 15px;
+        border-radius: 24px;
+    }
+
+    .welcome-title {
+        font-size: clamp(1.8rem, 8vw, 2.5rem);
     }
 }
 
-/* Main Call Button (Welcome Screen) */
-.main-call-btn {
-    margin-top: 30px;
-    padding: 15px 30px;
-    background: linear-gradient(135deg, var(--primary), #AA8C2C);
-    border: none;
-    border-radius: 50px;
-    color: #000;
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
-    transition: all 0.3s ease;
-    animation: fadeIn 1s ease-out 0.5s backwards;
-}
-
-.main-call-btn:hover {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 6px 25px rgba(212, 175, 55, 0.6);
-}
-
-.main-call-btn:active {
-    transform: translateY(1px);
-}
-
-.main-call-btn svg {
-    width: 24px;
-    height: 24px;
-    fill: currentColor;
-}
-
-/* Floating Action Button (FAB) */
-.fab-call-btn {
-    position: absolute;
-    /* Changed from fixed to absolute to stay within container */
-    /* Changed from fixed to absolute to stay within container */
-    bottom: 90px;
-    /* Adjusted bottom position to clear input area */
-    right: 20px;
-    /* Adjusted right position inside container */
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: var(--primary);
-    border: none;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-    /* Ensure nothing spills out */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 900;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    opacity: 0;
-    transform: scale(0);
-    pointer-events: none;
-}
-
-.fab-call-btn.visible {
-    opacity: 1;
-    transform: scale(1);
-    pointer-events: all;
-}
-
-.fab-call-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
-}
-
-.fab-call-btn.pulse {
-    animation: pulse-gold 2s infinite;
-}
-
-.fab-call-btn svg {
-    width: 28px;
-    height: 28px;
-    fill: #000;
-}
-
-/* Make Welcome container take full height properly */
-.welcome-container {
-    height: 100%;
-    /* Ensure it centers vertically in the view */
-}
-
-/* Mobile Adjustments */
 @media (max-width: 600px) {
+    .header-actions {
+        gap: 10px;
+    }
+
+    .logout-link {
+        font-size: 0.75rem;
+    }
+
     .main-call-btn {
-        width: 80%;
-        justify-content: center;
+        width: 90%;
+        max-width: 320px;
+        padding: 12px 20px;
+        font-size: 1rem;
     }
 
     .fab-call-btn {
@@ -1050,24 +1095,108 @@ body {
         height: 22px;
     }
 
-    /* Fixed Input Area for Mobile */
     .chat-input-area {
-        padding: 5px 10px;
-        gap: 5px;
+        padding: 8px 12px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+        gap: 8px;
     }
 
     .input-wrapper {
-        padding: 5px 8px;
-        gap: 5px;
-        border-radius: 20px;
+        padding: 6px 14px;
+        border-radius: 24px;
     }
 
     .chat-input {
-        font-size: 0.9rem;
+        font-size: 0.95rem;
     }
 
     .send-button {
-        width: 34px;
-        height: 34px;
+        width: 40px;
+        height: 40px;
+    }
+
+    .action-button {
+        padding: 8px;
+    }
+
+    .voice-call-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Fixed voice settings for mobile */
+    .voice-settings-panel {
+        position: fixed;
+        bottom: 80px;
+        top: auto;
+        left: 10px;
+        right: 10px;
+        width: auto;
+        transform: translateY(20px);
+        opacity: 0;
+        visibility: hidden;
+        z-index: 1001;
+        /* Above input area */
+    }
+
+    .voice-settings-panel.active {
+        transform: translateY(0);
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Mobile: Always show edit button since hover doesn't exist */
+    .edit-btn {
+        opacity: 0.8 !important;
+        padding: 8px;
+        right: 5px;
+    }
+
+    .user-message {
+        padding-right: 35px;
+    }
+
+    .voice-status {
+        font-size: 1.2rem;
+    }
+
+    .waveform-container {
+        gap: 4px;
+    }
+
+    .waveform-bar {
+        width: 4px;
+        height: 20px;
+    }
+}
+
+@media (max-width: 400px) {
+    .logo-text {
+        font-size: 1.2rem;
+        letter-spacing: -1px;
+    }
+
+    .welcome-title {
+        font-size: 2rem;
+    }
+
+    .message {
+        max-width: 95%;
+        padding: 10px 10px;
+    }
+
+    .chat-input-area {
+        padding: 6px 8px;
+    }
+}
+
+/* Touch Device Fixes */
+@media (hover: none) {
+    .action-button:hover {
+        background: none;
+    }
+
+    .send-button:hover {
+        transform: none;
     }
 }
