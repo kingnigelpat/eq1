@@ -101,7 +101,6 @@ body {
     /* Dynamic viewport height for mobile */
     display: flex;
     flex-direction: column;
-    flex-direction: column;
     /* Removed background on container to let body show through */
     background: transparent;
     /* backdrop-filter: blur(5px); Moved to overlay */
@@ -117,8 +116,8 @@ body {
     flex-shrink: 0;
     height: var(--header-height);
     background: var(--glass-bg);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -135,6 +134,44 @@ body {
     color: var(--primary);
     letter-spacing: -2px;
     text-shadow: 0 0 20px var(--primary-glow);
+}
+
+/* Theme Variations */
+body.theme-midnight-neon {
+    --primary: #00f2ff;
+    /* Cyan */
+    --primary-glow: rgba(0, 242, 255, 0.4);
+    --bg-dark: #0a0a0f;
+    --bg-animation-url: url('/static/neon_city.png');
+}
+
+body.theme-calm-forest {
+    --primary: #94fbab;
+    /* Mint Green */
+    --primary-glow: rgba(148, 251, 171, 0.4);
+    --bg-dark: #06140a;
+    --bg-animation-url: url('/static/forest_aurora.png');
+}
+
+body.theme-ocean-breeze {
+    --primary: #85d7ff;
+    /* Sky Blue */
+    --primary-glow: rgba(133, 215, 255, 0.4);
+    --bg-dark: #020c1b;
+    --bg-animation-url: url('/static/ocean_deep.png');
+}
+
+body.theme-sunset-rose {
+    --primary: #ff85a1;
+    /* Pink/Rose */
+    --primary-glow: rgba(255, 133, 161, 0.4);
+    --bg-dark: #1a0a0f;
+    --bg-animation-url: url('/static/sunset_aurora.png');
+}
+
+/* Base background handling for dynamic images */
+.bg-animation {
+    background-image: var(--bg-animation-url, url('/static/ethereal_aurora_bg.png'));
 }
 
 .header-actions {
@@ -1199,4 +1236,121 @@ body {
     .send-button:hover {
         transform: none;
     }
+}
+
+/* Personality Onboarding & Preferences Styles */
+.onboarding-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(15px);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.onboarding-overlay.active {
+    display: flex;
+    animation: fadeIn 0.5s ease;
+}
+
+.onboarding-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 30px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.onboarding-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    text-align: center;
+}
+
+.onboarding-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-gray);
+    text-align: center;
+    margin-top: -10px;
+}
+
+.pref-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pref-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-white);
+}
+
+.pref-textarea {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+    color: white;
+    font-size: 0.9rem;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.pref-select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+    color: white;
+    font-size: 0.9rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.pref-select option {
+    background: #111;
+    color: white;
+}
+
+.pref-button {
+    background: var(--primary);
+    color: black;
+    border: none;
+    padding: 14px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.pref-button:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+/* Update Settings Panel to be taller if needed */
+.voice-settings-panel {
+    width: 280px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.settings-divider {
+    height: 1px;
+    background: var(--glass-border);
+    margin: 10px 0;
 }

@@ -255,7 +255,7 @@
                     <td style="font-weight:600; ${isKing ? 'color:var(--primary);' : ''}">${user.username} ${isKing ? '👑' : ''}</td>
                     <td style="opacity:0.8;">${user.email || '—'}</td>
                     <td>
-                        ${!isKing ? `<button class="delete-btn" onclick="deleteUser(${user.id}, '${user.username}')">Delete</button>` : '<span style="opacity:0.3; font-size:0.8rem;">Protected</span>'}
+                        ${!isKing ? `<button class="delete-btn" onclick="deleteUser('${user.id}', '${user.username}')">Delete</button>` : '<span style="opacity:0.3; font-size:0.8rem;">Protected</span>'}
                     </td>
                 `;
                 tbody.appendChild(tr);

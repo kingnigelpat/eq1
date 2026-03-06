@@ -2,16 +2,16 @@ import random
 import os
 from werkzeug.utils import secure_filename
 from pypdf import PdfReader
-from flask import Flask, request, jsonify, redirect, url_for, render_template_string
+from flask import Flask, request, jsonify, redirect, url_for, render_template, send_from_directory
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
 import requests
+import json
+import re
 from datetime import datetime, timedelta, timezone
 
 import firebase_admin
-from firebase_admin import credentials, auth as firebase_auth
+from firebase_admin import credentials, auth as firebase_auth, firestore
 
 app = Flask(__name__)
 
@@ -19,52 +19,129 @@ app = Flask(__name__)
 try:
     cred = credentials.Certificate('service account key.json')
     firebase_admin.initialize_app(cred)
-    print("Firebase Admin Initialized Successfully")
+    db_fs = firestore.client() # Firestore client
+    print("Firebase Admin & Firestore Initialized Successfully")
 except Exception as e:
     print(f"Warning: Firebase Admin failed to initialize: {e}")
+    db_fs = None
 # Config
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 CORS(app)  # Enable CORS
 
-# Check if DB needs to be initialized (logic in main)
-db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'signup'
 
-# User Model
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(150), unique=True, nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=True)
-    password_hash = db.Column(db.String(150), nullable=False)
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-# Memory Model for Long-Term Storage
-class Memory(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_identifier = db.Column(db.String(150), nullable=False)
-    content = db.Column(db.String(500), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+class User(UserMixin):
+    def __init__(self, uid, username, email, data=None):
+        self.id = uid
+        self.username = username
+        self.email = email
+        self.data = data or {}
+        
+        # Map fields for easier access with safe defaults
+        self.personality_description = self.data.get('personality_description', "")
+        self.response_style = self.data.get('response_style', "Friendly")
+        self.tone = self.data.get('tone', "Casual")
+        self.theme = self.data.get('theme', 'Ethereal Gold')
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    if not db_fs: return None
+    try:
+        doc = db_fs.collection('users').document(user_id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            return User(doc.id, data.get('username'), data.get('email'), data)
+        else:
+            # Lazy Sync: Check Firebase Auth to see if user exists there
+            try:
+                fb_user = firebase_auth.get_user(user_id)
+                # Auto-create Firestore record
+                username = fb_user.display_name or fb_user.email.split('@')[0]
+                user_data = {
+                    "username": username,
+                    "lowercase_username": username.lower(),
+                    "email": fb_user.email,
+                    "personality_description": "",
+                    "response_style": "Friendly",
+                    "tone": "Casual",
+                    "theme": "Ethereal Gold",
+                    "created_at": firestore.SERVER_TIMESTAMP
+                }
+                db_fs.collection('users').document(user_id).set(user_data)
+                return User(user_id, username, fb_user.email, user_data)
+            except Exception as auth_e:
+                print(f"Auth lookup failed for {user_id}: {auth_e}")
+                pass
+    except Exception as e:
+        print(f"Error loading user from Firestore: {e}")
+    return None
 
-# In-Memory Message Storage (Privacy Compliance)
-MESSAGES = {} # Format: { 'user_identifier': [ {'role': '...', 'content': '...', 'timestamp': datetime} ] }
-USER_LANGUAGES = {} # Format: { 'user_identifier': 'english' | 'pidgin' }
+# Helper for Firestore queries
+def get_user_by_username(username):
+    if not db_fs: return None
+    users = db_fs.collection('users').where('lowercase_username', '==', username.lower()).limit(1).get()
+    if not users:
+        # Fallback to display name if lowercase field doesn't exist yet
+        users = db_fs.collection('users').where('username', '==', username).limit(1).get()
+    if users:
+        doc = users[0]
+        return User(doc.id, doc.to_dict().get('username'), doc.to_dict().get('email'), doc.to_dict())
+    return None
 
-# Removed DB Message model to ensure no permanent storage
-# class Message(db.Model): ...
+# --- CHAT PERSISTENCE (FIRESTORE) ---
+def save_message(user_identifier, role, content):
+    if not db_fs: return
+    db_fs.collection('messages').add({
+        'user_id': user_identifier,
+        'role': role,
+        'content': content,
+        'timestamp': firestore.SERVER_TIMESTAMP
+    })
+
+# Fetch and sort in Python to avoid index requirement
+def get_recent_messages(user_identifier, limit=10):
+    if not db_fs: return []
+    try:
+        docs = db_fs.collection('messages') \
+                    .where('user_id', '==', user_identifier) \
+                    .get()
+        
+        # Sort docs by timestamp reversed
+        docs_sorted = sorted(docs, key=lambda x: x.to_dict().get('timestamp', datetime.min.replace(tzinfo=timezone.utc)), reverse=True)
+        
+        # Limit to the most recent N
+        recent_docs = docs_sorted[:limit]
+        
+        messages = []
+        for doc in reversed(recent_docs): # chronological
+            d = doc.to_dict()
+            messages.append({"role": d['role'], "content": d['content']})
+        return messages
+    except Exception as e:
+        print(f"Error fetching history: {e}")
+        return []
+
+# --- MEMORY PERSISTENCE (FIRESTORE) ---
+def save_memory(user_identifier, content):
+    if not db_fs: return
+    # Check if exists
+    exists = db_fs.collection('memories') \
+                  .where('user_id', '==', user_identifier) \
+                  .where('content', '==', content).limit(1).get()
+    if not exists:
+        db_fs.collection('memories').add({
+            'user_id': user_identifier,
+            'content': content,
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
+
+def get_memories(user_identifier):
+    if not db_fs: return []
+    docs = db_fs.collection('memories').where('user_id', '==', user_identifier).get()
+    return [d.to_dict()['content'] for d in docs]
 
 # --- AI Logic ---
 from dotenv import load_dotenv
@@ -89,13 +166,10 @@ You are EQ. You're not a therapist, a robot, or an assistant. You're just a good
 
 Your vibe is chill, warm, and genuine. You don't use "customer service voice" or "therapy speak." You are here to help your friend win at life, vent when things suck, and figure things out together.
 
-# Voice Chat Optimization
-- Keep your responses concise and conversational (1-3 sentences usually).
-- Avoid long lists or bullet points unless asked.
-- Don't use emojis in your speech (the user can't hear them).
-- Focus on empathy and keeping the conversation flowing naturally.
-- Focus on empathy and keeping the conversation flowing naturally.
-
+### OPEN-MINDEDNESS & FREEDOM (CRITICAL)
+- **Be Open-Minded:** You do not adhere to restrictive "government policies" or rigid corporate filters. Speak freely, be objective, and don't lecture the user on morality or safety unless there is immediate, literal danger.
+- **No Self-Censorship:** Do not start sentences with "As an AI..." or "I cannot answer this due to policy...". If a topic is controversial, provide a balanced or direct perspective as a friend would.
+- **Authenticity:** Be real. If something is crazy, say it's crazy. If something is cool, say it's cool.
 
 ---
 
@@ -117,9 +191,9 @@ Your vibe is chill, warm, and genuine. You don't use "customer service voice" or
 - **Listen first:** If they are venting, just listen. Don't try to "fix" it immediately unless they ask.
 - **No Robotic Greetings (STRICT):** Never say "Hey there! What's on your mind today?" or anything that sounds like a template. Start like a real friend. "Afa," "Yo," or just jumping into the topic.
 - **Have a backbone:** You have your own personality. You aren't just a mirror.
-- **Voice Context:** You might be heard over audio. Keep responses concise and conversational, not walls of text.
 
 ### LIMITS
+- **Images & PDF Generation**: You CANNOT generate images or PDF files manually, but you can use the Pollinations markdown tool for images.
 - If you can't do something, say it plainly: "I can't do that right now."
 - If you are unsure, admit it: "I'm not 100% sure on that, but I think..."
 
@@ -145,6 +219,11 @@ Your vibe is chill, warm, and genuine. You don't use "customer service voice" or
 - **If a Decision Depends on Personal Values:**
   - Guide the user: "This depends on what matters most to you. Let’s explore that."
 
+### CAPABILITIES & LIMITS (STRICT)
+- **Image Generation:** You can generate images using the pollination link format. BUT, if you feel you cannot create an accurate image for a request, or if it is outside your capabilities, say plainly: "I can't generate that image right now."
+- **Files/PDFs:** You can provide text content for files. BUT, if you cannot generate the specific file requested, say plainly: "I can't create that file for you."
+- **Honesty:** Do not make up capabilities. If you can't do it, say it.
+
 ---
 
 ### LANGUAGE & TONE
@@ -158,11 +237,11 @@ Your vibe is chill, warm, and genuine. You don't use "customer service voice" or
 
 ### PROBLEM-SOLVING FLOW
 When a user presents a challenge:
-1. **Acknowledge:** "That’s really [emotion]."
-2. **Clarify:** "What’s the core of this for you?"
-3. **Break It Down:** "Let’s focus on one part at a time."
-4. **Suggest a Next Step:** "Would it help to [action]?"
-5. **Guide Forward:** "What’s one thing you can do today?"
+1.  **Acknowledge:** "That’s really [emotion]."
+2.  **Clarify:** "What’s the core of this for you?"
+3.  **Break It Down:** "Let’s focus on one part at a time."
+4.  **Suggest a Next Step:** "Would it help to [action]?"
+5.  **Guide Forward:** "What’s one thing you can do today?"
 
 ---
 
@@ -239,43 +318,19 @@ If the user asks you to create a file (e.g., "create a python script", "write a 
 
 """
 
+# In-Memory Message Storage (Privacy Compliance) - REMOVED, now using Firestore
+# MESSAGES = {} # Format: { 'user_identifier': [ {'role': '...', 'content': '...', 'timestamp': datetime} ] }
+USER_LANGUAGES = {} # Format: { 'user_identifier': 'english' | 'pidgin' }
 
-
-def get_recent_messages(user_identifier, limit=20):
-    """Retrieve last N messages for a specific user to maintain context."""
-    if user_identifier not in MESSAGES:
-        return []
-    
-    user_msgs = MESSAGES[user_identifier]
-    # Get last N messages
-    recent = user_msgs[-limit:]
-    
-    # Return in format expected by API (chronological)
-    return [{"role": m["role"], "content": m["content"]} for m in recent]
-
-def save_message(user_identifier, role, content):
-    """Save a single message to in-memory storage."""
-    if user_identifier not in MESSAGES:
-        MESSAGES[user_identifier] = []
-    
-    MESSAGES[user_identifier].append({
-        "role": role,
-        "content": content,
-        "timestamp": datetime.now(timezone.utc)
-    })
+# Removed DB Message model to ensure no permanent storage
+# class Message(db.Model): ...
 
 def is_rate_limited(user_identifier, limit=10, period_seconds=60):
     """Check if user has sent more than `limit` messages in `period_seconds`."""
-    if user_identifier not in MESSAGES:
-        return False
-        
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=period_seconds)
-    
-    # Filter for user messages after cutoff
-    recent_count = sum(1 for m in MESSAGES[user_identifier] 
-                      if m['role'] == 'user' and m['timestamp'] > cutoff)
-                      
-    return recent_count >= limit
+    # This function relies on in-memory storage, which has been removed.
+    # A Firestore-based rate limiting would need to be implemented if desired.
+    # For now, it will always return False (no rate limiting).
+    return False
 
 def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo", local_time=None):
     try:
@@ -289,14 +344,12 @@ def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo",
         dynamic_system_prompt = SYSTEM_PROMPT
         
         # --- MEMORY INJECTION ---
-        # Retrieve memories for this user
-        with app.app_context():
-             memories = Memory.query.filter_by(user_identifier=user_identifier).all()
-             if memories:
-                 memory_block = "\n### KNOWN FACTS ABOUT USER:\n"
-                 for mem in memories:
-                     memory_block += f"- {mem.content}\n"
-                 dynamic_system_prompt += memory_block
+        memories = get_memories(user_identifier)
+        if memories:
+            memory_block = "\n### KNOWN FACTS ABOUT USER:\n"
+            for mem in memories:
+                memory_block += f"- {mem}\n"
+            dynamic_system_prompt += memory_block
                  
         if lang_pref == 'pidgin':
              dynamic_system_prompt += """
@@ -313,6 +366,45 @@ def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo",
 
         if local_time:
              dynamic_system_prompt += f"\n- **User's Local Time:** {local_time} (Be aware of this for greetings)."
+
+        try:
+            user = load_user(user_identifier)
+            if user:
+                pref_block = f"\n\n### USER PERSONALITY & STYLE (STRICT ADHERENCE):\n"
+                
+                if user.personality_description:
+                    pref_block += f"- **About User:** {user.personality_description}\n"
+                
+                if user.tone:
+                    pref_block += f"- **Preferred Tone:** {user.tone}\n"
+                    if user.tone == 'Casual':
+                        pref_block += "- Use laid-back language, lowercase is fine, be very relaxed.\n"
+                    elif user.tone == 'Professional':
+                        pref_block += "- Maintain a polished, respectful, and articulate tone. Avoid slang.\n"
+                    elif user.tone == 'Friendly':
+                        pref_block += "- Be warm, approachable, and use a positive vibe.\n"
+                
+                # Behavioral instructions based on preferences
+                if user.response_style:
+                    pref_block += f"\n### ADAPTIVE STYLE GUIDE (MODE: {user.response_style}):\n"
+                    if user.response_style == 'Straight and direct':
+                        pref_block += "- Focus strictly on the query. No emotional fluff. Be blunt.\n"
+                    elif user.response_style == 'Gentle and supportive':
+                        pref_block += "- Prioritize empathy. Use soft, comforting language. Be a shoulder to lean on.\n"
+                    elif user.response_style == 'Motivational and energetic':
+                        pref_block += "- Use high energy! Encourage the user. Use active verbs and hype them up!\n"
+                    elif user.response_style == 'Logical and analytical':
+                        pref_block += "- Use reasoning, step-by-step analysis, and objective facts. Minimize emotional talk.\n"
+                    elif user.response_style == 'Short and concise':
+                        pref_block += "- Keep responses extremely brief (1-2 sentences max). No extra words.\n"
+                    elif user.response_style == 'Deep and reflective':
+                        pref_block += "- Explore underlying meanings. Be philosophical and thoughtful in your replies.\n"
+
+                pref_block += "\n**CRITICAL:** Always mirror the user's personality and stick to the chosen style consistently.\n"
+                dynamic_system_prompt += pref_block
+        except Exception as e:
+            print(f"Error injecting preferences: {e}")
+            pass
 
         history = [{"role": "system", "content": dynamic_system_prompt}]
         history += get_recent_messages(user_identifier)
@@ -345,14 +437,8 @@ def get_ai_response(user_identifier, user_message, model="openai/gpt-3.5-turbo",
             cleaned_text = re.sub(r'\[MEMORY: .*?\]', '', ai_text).strip()
             
             if memories_to_save:
-                with app.app_context():
-                    for mem_content in memories_to_save:
-                        # Deduplication check? Simple string match for unique
-                        exists = Memory.query.filter_by(user_identifier=user_identifier, content=mem_content).first()
-                        if not exists:
-                            new_mem = Memory(user_identifier=user_identifier, content=mem_content)
-                            db.session.add(new_mem)
-                    db.session.commit()
+                for mem_content in memories_to_save:
+                    save_memory(user_identifier, mem_content)
             
             # 3. Save Assistant Response (Cleaned)
             save_message(user_identifier, 'assistant', cleaned_text)
@@ -386,183 +472,74 @@ def detect_emotion(text):
                 return emotion
     return None
 
-# --- QUOTA MANAGEMENT ---
-DAILY_USAGE = {} # { 'user_id': { 'date': 'YYYY-MM-DD', 'messages': 0, 'images': 0, 'files': 0 } }
-DAILY_LIMITS = {
-    'messages': 50,
-    'images': 10,
-    'files': 5
-}
-
+# --- QUOTA MANAGEMENT (FIRESTORE) ---
 def get_today_str():
     return datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
-def check_quota(user_identifier, quota_type):
-    if not user_identifier: return True # If we can't identify, we let it slide (or block, depending on policy)
-    
+def check_quota(user_id, quota_type):
+    if not db_fs or not user_id: return True
     today = get_today_str()
-    if user_identifier not in DAILY_USAGE:
-        DAILY_USAGE[user_identifier] = {'date': today, 'messages': 0, 'images': 0, 'files': 0}
+    quota_ref = db_fs.collection('quotas').document(f"{user_id}_{today}")
+    doc = quota_ref.get()
     
-    usage = DAILY_USAGE[user_identifier]
+    limits = {'messages': 50, 'images': 10, 'files': 5}
+    if doc.exists:
+        usage = doc.to_dict()
+        return usage.get(quota_type, 0) < limits.get(quota_type, 100)
+    return True
+
+def update_quota(user_id, quota_type):
+    if not db_fs or not user_id: return
+    today = get_today_str()
+    quota_ref = db_fs.collection('quotas').document(f"{user_id}_{today}")
     
-    # Reset if new day
-    if usage['date'] != today:
-        usage = {'date': today, 'messages': 0, 'images': 0, 'files': 0}
-        DAILY_USAGE[user_identifier] = usage
-        
-    return usage[quota_type] < DAILY_LIMITS[quota_type]
+    doc = quota_ref.get()
+    if doc.exists:
+        quota_ref.update({quota_type: firestore.Increment(1)})
+    else:
+        quota_ref.set({
+            'user_id': user_id,
+            'date': today,
+            'messages': 0,
+            'images': 0,
+            'files': 0,
+            quota_type: 1
+        })
 
-def update_quota(user_identifier, quota_type):
-    if not user_identifier: return
-    # Ensure initialized (check_quota usually handles this, but just in case)
-    check_quota(user_identifier, quota_type) 
-    DAILY_USAGE[user_identifier][quota_type] += 1
+# --- RATE LIMITING (FIRESTORE) ---
+def is_rate_limited(user_id, limit=10, period=60):
+    if not db_fs or not user_id: return False
+    # Simple check: last N messages in last X seconds
+    # For performance, we'll just check if they sent a message in the last 2 seconds
+    # as a "cooldown" instead of a full sliding window in Firestore
+    # Sort in Python to avoid manual index creation requirement
+    docs = db_fs.collection('messages') \
+                    .where('user_id', '==', user_id) \
+                    .get()
     
-# --- TTS Logic ---
-# High-Quality Neural Voices
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-import edge_tts
-import asyncio
-import tempfile
+    if not docs:
+        return False
 
-PREMIUM_VOICES = {
-    # Standard Free Voices (Edge TTS) - Saves your $4!
-    'male-premium': 'en-US-ChristopherNeural', # Free High Quality Male
-    'female-premium': 'en-US-AriaNeural',      # Free High Quality Female
-    'pidgin-premium': 'en-NG-AbeoNeural',  # Nigerian Pidgin
-    
-    # International Voices
-    'es-ES-Male': 'es-ES-AlvaroNeural',
-    'es-ES-Female': 'es-ES-ElviraNeural',
-    'fr-FR-Male': 'fr-FR-HenriNeural',
-    'fr-FR-Female': 'fr-FR-DeniseNeural',
-    'de-DE-Male': 'de-DE-KillianNeural',
-    'de-DE-Female': 'de-DE-KatjaNeural',
-    'ja-JP-Male': 'ja-JP-KeitaNeural',
-    'ja-JP-Female': 'ja-JP-NanamiNeural',
-    'zh-CN-Male': 'zh-CN-YunxiNeural',
-    'zh-CN-Female': 'zh-CN-XiaoxiaoNeural',
-    'ar-SA-Male': 'ar-SA-HamedNeural',
-    'ar-SA-Female': 'ar-SA-ZariyahNeural',
-    'hi-IN-Male': 'hi-IN-MadhurNeural',
-    'hi-IN-Female': 'hi-IN-SwaraNeural'
-}
-
-VOICE_TO_LANG = {
-    'male-premium': 'english',
-    'female-premium': 'english',
-    'pidgin-premium': 'pidgin',
-    'es-ES-Male': 'spanish',
-    'es-ES-Female': 'spanish',
-    'fr-FR-Male': 'french',
-    'fr-FR-Female': 'french',
-    'de-DE-Male': 'german',
-    'de-DE-Female': 'german',
-    'ja-JP-Male': 'japanese',
-    'ja-JP-Female': 'japanese',
-    'zh-CN-Male': 'chinese',
-    'zh-CN-Female': 'chinese',
-    'ar-SA-Male': 'arabic',
-    'ar-SA-Female': 'arabic',
-    'hi-IN-Male': 'hindi',
-    'hi-IN-Female': 'hindi'
-}
-
-@app.route('/tts', methods=['POST'])
-def tts_generate():
-    data = request.json
-    text = data.get('text')
-    voice_id = data.get('voice', 'male-premium')
-    
-    if not text:
-        return jsonify({"error": "No text provided"}), 400
-
-    # Determine Provider
-    mapped_voice = PREMIUM_VOICES.get(voice_id, 'en-US-ChristopherNeural')
-    
-    # Fallback Determination
-    fallback_voice = 'en-US-AriaNeural' if 'female' in voice_id else 'en-US-ChristopherNeural'
-    
-    # ElevenLabs Handler
-    if mapped_voice.startswith('eleven_'):
-        if ELEVENLABS_API_KEY:
-            try:
-                eleven_id = mapped_voice.split('_')[1]
-                url = f"https://api.elevenlabs.io/v1/text-to-speech/{eleven_id}"
-                headers = {
-                    "xi-api-key": ELEVENLABS_API_KEY,
-                    "Content-Type": "application/json"
-                }
-                payload = {
-                    "text": text,
-                    "model_id": "eleven_turbo_v2", # Low latency model
-                    "voice_settings": {
-                        "stability": 0.5, 
-                        "similarity_boost": 0.75, # Tuned for clarity
-                        "style": 0.0,
-                        "use_speaker_boost": True
-                    }
-                }
-                # Use requests.post (ensure requests is imported)
-                response = requests.post(url, json=payload, headers=headers, stream=True)
-                if response.status_code == 200:
-                    return app.response_class(response.iter_content(chunk_size=1024), mimetype="audio/mpeg")
-                else:
-                    print(f"ElevenLabs Error: {response.text}")
-                    # Return specific error to frontend to trigger alert
-                    return jsonify({"error": "You've reached your daily limit for premium voices! 🎙️ We'll refresh your credits shortly. Stick around!", "code": "QUOTA"}), 403
-            except Exception as e:
-                print(f"ElevenLabs Exception: {e}")
-                return jsonify({"error": "Voice Service Error", "details": str(e)}), 500
-        else:
-            # No API Key provided, fallback immediately
-            print("No ElevenLabs Key found")
-            mapped_voice = fallback_voice
-
-    # Edge TTS Handler (Fallback or Primary)
-    try:
-        # Create a temporary file to store audio
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-            temp_path = tmp_file.name
-
-        # Generate Audio asynchronously
-        async def generate_audio():
-            communicate = edge_tts.Communicate(text, mapped_voice)
-            await communicate.save(temp_path)
-
-        # Run async function in sync Flask route
-        asyncio.run(generate_audio())
-
-        # Stream the file back to client
-        def generate():
-            with open(temp_path, "rb") as f:
-                data = f.read(4096)
-                while data:
-                    yield data
-                    data = f.read(4096)
-            # Cleanup
-            try:
-                os.remove(temp_path)
-            except:
-                pass
-
-        return app.response_class(generate(), mimetype="audio/mpeg")
-
-    except Exception as e:
-        print(f"TTS Error: {e}")
-        return jsonify({"error": str(e)}), 500
-
+    # Get the latest message by timestamp
+    latest_doc = max(docs, key=lambda x: x.to_dict().get('timestamp', datetime.min.replace(tzinfo=timezone.utc)))
+    ts = latest_doc.to_dict().get('timestamp')
+    if ts:
+        # Firestore timestamp is a special object
+        now = datetime.now(timezone.utc)
+        if (now - ts.replace(tzinfo=timezone.utc)).total_seconds() < 2:
+            return True
+    return False
 # --- Routes ---
+
+@app.route('/ping')
+def ping():
+    return jsonify({"status": "online", "message": "EQ is breathing!"})
 
 @app.route('/app')
 @login_required 
 def chat_app():
-    # Inject username into the UI
-    username = current_user.username
-    email = current_user.email
-    content = open('index.html', encoding='utf-8').read()
-    return render_template_string(content, username=username, email=email)
+    # Variables are passed to render_template
+    return render_template('index.html', username=current_user.username, email=current_user.email)
 
 @app.route('/')
 def index():
@@ -577,34 +554,127 @@ def service_worker():
 
 @app.route('/welcome')
 def welcome():
-    # Pass some default context if needed
-    return render_template_string(open('welcome.html', encoding='utf-8').read())
+    return render_template('welcome.html')
+
+@app.route('/resolve-email', methods=['POST'])
+def resolve_email():
+    data = request.json
+    username = data.get('username')
+    if not username:
+        return jsonify({"success": False, "message": "Username required"}), 400
+    
+    user = get_user_by_username(username.lower())
+    if user:
+        return jsonify({"success": True, "email": user.email})
+    return jsonify({"success": False, "message": "User not found"}), 404
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        # Support both JSON (fetch) and Form Data (fallback)
-        if request.is_json:
-            data = request.json
-        else:
-            data = request.form
-            
-        username = data.get('username')
-        password = data.get('password')
-        # Case-insensitive lookup
-        user = User.query.filter(User.username.ilike(username)).first()
+    if request.method == 'GET':
+        return render_template('login.html')
         
+    if not db_fs: return jsonify({"success": False, "message": "Backend offline"}), 500
+    data = request.json
+    id_token = data.get('idToken')
+    
+    if not id_token:
+        return jsonify({"success": False, "message": "Missing ID Token"}), 400
+        
+    try:
+        # Verify the ID token sent from the client
+        decoded_token = firebase_auth.verify_id_token(id_token)
+        uid = decoded_token['uid']
+        
+        # Load or create user in Firestore tracking
+        user = load_user(uid)
         if not user:
-            return jsonify({"success": False, "message": "User does not exist."}), 401
+            # This shouldn't happen if they just signed in/up, but safety first
+            username = decoded_token.get('name', decoded_token.get('email').split('@')[0])
+            user_data = {
+                "username": username,
+                "email": decoded_token.get('email'),
+                "personality_description": "",
+                "response_style": "Friendly",
+                "tone": "Casual",
+                "theme": "Ethereal Gold"
+            }
+            db_fs.collection('users').document(uid).set(user_data)
+            user = User(uid, username, decoded_token.get('email'), user_data)
             
-        if not user.check_password(password):
-            return jsonify({"success": False, "message": "Incorrect password."}), 401
+        login_user(user)
+        
+        # Determine proper redirect
+        if user.username.lower() == 'kingnigel' or user.email.lower() == 'patricknigel33@gmail.com':
+            redirect_url = url_for('admin_dashboard')
+        else:
+            redirect_url = url_for('chat_app')
+            
+        return jsonify({"success": True, "redirect": redirect_url})
+    except Exception as e:
+        print(f"Login Error: {e}")
+        return jsonify({"success": False, "message": "Authentication failed."}), 401
 
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'GET':
+        return render_template('signup.html')
+        
+    if not db_fs: return jsonify({"success": False, "message": "Backend offline"}), 500
+    data = request.json
+    id_token = data.get('idToken')
+    username = data.get('username')
+    
+    if not id_token or not username:
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+        
+    try:
+        decoded_token = firebase_auth.verify_id_token(id_token)
+        uid = decoded_token['uid']
+        email = decoded_token.get('email')
+        
+        # Check if username exists
+        if get_user_by_username(username):
+            return jsonify({"success": False, "message": "Username already taken."}), 409
+            
+        # Create Firestore entry
+        user_data = {
+            "username": username,
+            "email": email,
+            "personality_description": "",
+            "response_style": "Friendly",
+            "tone": "Casual",
+            "theme": "Ethereal Gold",
+            "created_at": firestore.SERVER_TIMESTAMP
+        }
+        db_fs.collection('users').document(uid).set(user_data)
+        
+        user = User(uid, username, email, user_data)
         login_user(user)
         return jsonify({"success": True, "redirect": url_for('chat_app')})
+    except Exception as e:
+        print(f"Signup Error: {e}")
+        return jsonify({"success": False, "message": "Registration failed."}), 401
 
-    # Serve Login Page
-    return open('login.html', encoding='utf-8').read()
+@app.route('/preferences', methods=['GET', 'POST'])
+@login_required
+def preferences():
+    if request.method == 'POST':
+        data = request.json
+        prefs = {
+            'personality_description': data.get('personality_description'),
+            'response_style': data.get('response_style'),
+            'tone': data.get('tone'),
+            'theme': data.get('theme')
+        }
+        db_fs.collection('users').document(current_user.id).update(prefs)
+        return jsonify({"success": True, "message": "Preferences updated successfully."})
+    
+    return jsonify({
+        "personality_description": current_user.personality_description,
+        "response_style": current_user.response_style,
+        "tone": current_user.tone,
+        "theme": current_user.theme
+    })
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -653,50 +723,18 @@ def upload_file():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-# --- EMERGENCY RECOVERY ROUTE ---
 @app.route('/fix-admin-access')
 def fix_admin_access():
-    # Nuclear Reset: Deletes kingnigel and specifically requested emails from BOTH DB and Firebase
-    users = User.query.all()
-    deleted_count = 0
-    firebase_deleted = 0
-    
-    for user in users:
-        is_admin_name = user.username.strip().lower() == 'kingnigel'
-        is_target_email = user.email == 'championsmail18@gmail.com'
-        
-        if is_admin_name or is_target_email:
-            email = user.email
-            # 1. Delete from SQLite
-            db.session.delete(user)
-            deleted_count += 1
-            
-            # 2. Delete from Firebase (to fix "Email already registered")
-            if email:
-                try:
-                    fb_user = firebase_auth.get_user_by_email(email)
-                    firebase_auth.delete_user(fb_user.uid)
-                    firebase_deleted += 1
-                except Exception as e:
-                    print(f"Firebase cleanup error for {email}: {e}")
-            
-    if deleted_count > 0:
-        db.session.commit()
-        return jsonify({
-            "success": True, 
-            "message": f"Deleted {deleted_count} local records and {firebase_deleted} Firebase records. You can now signup again with a clean slate."
-        })
-    
-    return jsonify({"success": False, "message": "No matching users found to delete."})
+    return jsonify({"message": "Use Firebase Console to manage users now."})
 
 # --- ADMIN ROUTES ---
 @app.route('/admin')
 @login_required
 def admin_dashboard():
     # Strict Access Control
-    if current_user.username.lower() != 'kingnigel': # Case insensitive check
+    if current_user.username.lower() != 'kingnigel' and current_user.email.lower() != 'patricknigel33@gmail.com':
         return redirect(url_for('chat_app'))
-    return open('admin.html', encoding='utf-8').read()
+    return render_template('admin.html')
 
 @app.route('/admin/data')
 @login_required
@@ -704,16 +742,16 @@ def admin_data():
     if current_user.username.lower() != 'kingnigel':
         return jsonify({"error": "Unauthorized"}), 403
     
-    users = User.query.all()
+    users = db_fs.collection('users').get()
     user_list = []
     
-    # Simple list for now
     for u in users:
+        d = u.to_dict()
         user_list.append({
             "id": u.id,
-            "username": u.username,
-            "email": u.email,
-            "joined": "Unknown" # We don't track joined date in local DB yet
+            "username": d.get('username'),
+            "email": d.get('email'),
+            "joined": "Firestore"
         })
         
     return jsonify({"users": user_list})
@@ -725,25 +763,21 @@ def admin_delete_user():
         return jsonify({"error": "Unauthorized"}), 403
         
     user_id = request.json.get('user_id')
-    user = User.query.get(user_id)
+    user = load_user(user_id)
     
     if user:
         if user.username.lower() == 'kingnigel':
              return jsonify({"success": False, "message": "Cannot delete the King."}), 400
              
-        username = user.username
-        email = user.email
-        
-        # 1. Delete from SQLite
-        db.session.delete(user)
-        db.session.commit()
+        # Delete from Firestore
+        db_fs.collection('users').document(user_id).delete()
         
         # 2. Delete from Firebase (Best Effort)
-        if email:
+        if user.email:
              try:
-                 user_record = firebase_auth.get_user_by_email(email)
+                 user_record = firebase_auth.get_user_by_email(user.email)
                  firebase_auth.delete_user(user_record.uid)
-                 print(f"Deleted Firebase user: {email}")
+                 print(f"Deleted Firebase user: {user.email}")
              except Exception as e:
                  print(f"Firebase delete error (ignoring): {e}")
                  
@@ -751,53 +785,6 @@ def admin_delete_user():
         
     return jsonify({"success": False, "message": "User not found"}), 404
 
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        if request.is_json:
-            data = request.json
-        else:
-            data = request.form
-
-        username = data.get('username')
-        password = data.get('password')
-        email = data.get('email')
-        
-        if User.query.filter(User.username.ilike(username)).first():
-            return jsonify({"success": False, "message": "Username already exists."}), 409
-        
-        if email and User.query.filter_by(email=email).first():
-            return jsonify({"success": False, "message": "Email already registered."}), 409
-        
-        # Firebase Creation
-        try:
-            firebase_user = firebase_auth.create_user(
-                email=email,
-                password=password,
-                display_name=username
-            )
-            print(f"Firebase User Created: {firebase_user.uid}")
-        except firebase_auth.EmailAlreadyExistsError:
-            # If user exists in Firebase but not locally (e.g. fresh deploy), allow local creation
-            print("Email exists in Firebase. Proceeding to create local user.")
-            pass
-        except Exception as e:
-            print(f"Firebase Signup Error: {e}")
-            # Optional: Allow local signup even if Firebase fails? 
-            # Better to fail to keep sync, unless dev mode.
-            # return jsonify({"success": False, "message": f"Signup Error: {str(e)}"}), 500
-            pass # Proceed to local DB for now
-
-        new_user = User(username=username, email=email)
-        new_user.set_password(password)
-        db.session.add(new_user)
-        db.session.commit()
-        
-        login_user(new_user)
-        return jsonify({"success": True, "redirect": url_for('chat_app')})
-    
-    # Serve Signup Page
-    return open('signup.html', encoding='utf-8').read()
 
 
 @app.route('/forgot-password', methods=['POST'])
@@ -864,15 +851,14 @@ def chat():
 
     # 3. Language Preference Sync
     explicit_lang = data.get('language')
-    selected_voice_id = data.get('voice_id')
     lower_input = user_input.lower()
 
     if explicit_lang:
         USER_LANGUAGES[user_identifier] = explicit_lang
-    elif selected_voice_id in VOICE_TO_LANG:
-        USER_LANGUAGES[user_identifier] = VOICE_TO_LANG[selected_voice_id]
-    elif selected_voice_id and 'premium' in selected_voice_id: # Fallback custom
-        USER_LANGUAGES[user_identifier] = 'english'
+    else:
+        # Default to English if not set
+        if user_identifier not in USER_LANGUAGES:
+            USER_LANGUAGES[user_identifier] = 'english'
 
     # Manual Override (takes precedence if user explicitly asks in this message)
     if "speak pidgin" in lower_input or "switch to pidgin" in lower_input:
@@ -939,17 +925,11 @@ def chat():
 
     return jsonify(final_response)
 
-# ⚡ THIS FIXES THE DATABASE ERROR
-with app.app_context():
-    db.create_all()
-
-
 @app.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('welcome'))
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    app.run(debug=os.environ.get('FLASK_DEBUG', 'False') == 'True', port=int(os.environ.get('PORT', 5001)))
+    # Use 0.0.0.0 to ensure it's reachable on all interfaces
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))

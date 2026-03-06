@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>EQ - Your Emotional Companion</title>
+    <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
+    <link rel="stylesheet" href="/static/eq_style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        // Check if running as a standalone app
+        window.isAppInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('SW Registered', reg))
+                    .catch(err => console.log('SW Error', err));
+            });
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @keyframes pulse-gold {
+            0% {
+                transform: scale(1);
+                text-shadow: 0 0 5px var(--primary);
+            }
+
+            50% {
+                transform: scale(1.15);
+                text-shadow: 0 0 25px var(--primary);
+            }
+
+            100% {
+                transform: scale(1);
+                text-shadow: 0 0 5px var(--primary);
+            }
+        }
+
+        .install-ready {
+            animation: pulse-gold 2s infinite;
+            color: var(--primary) !important;
+            filter: drop-shadow(0 0 8px var(--primary));
+        }
+
+        /* RTL Overrides for International Support */
+        [dir="rtl"] .user-message {
+            border-bottom-right-radius: 18px;
+            border-bottom-left-radius: 4px;
+            padding-right: 16px;
+            padding-left: 35px;
+        }
+
+        [dir="rtl"] .eq-message {
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 4px;
+        }
+
+        [dir="rtl"] .edit-btn {
+            right: auto;
+            left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-animation"></div>
+    <div class="bg-overlay"></div>
+    <div class="chat-container">
+        <header class="chat-header">
+            <span class="logo-text" id="logoInstall" title="Download EQ App" style="cursor: pointer;">EQ</span>
+            <div class="header-actions">
+                <button class="settings-toggle-btn" onclick="toggleVoiceSettings()" title="Settings">⚙️</button>
+                <a href="#" class="logout-link" onclick="sendFeedback(); return false;">Feedback</a>
+                <a href="/logout" class="logout-link" onclick="localStorage.removeItem('eq_user_id');">Logout</a>
+            </div>
+        </header>
+
+        <div class="voice-settings-panel" id="voiceSettingsPanel">
+            <div class="settings-header">
+                <span>Preferences</span>
+                <button onclick="toggleVoiceSettings()"
+                    style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Language</span>
+                <select id="langSelect" onchange="changeLanguage(this.value)">
+                    <option value="en">English (US)</option>
+                    <option value="pcm">Nigerian Pidgin</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                    <option value="de">Deutsch</option>
+                    <option value="ja">日本語</option>
+                    <option value="zh">中文</option>
+                    <option value="ar">العربية</option>
+                </select>
+            </div>
+
+            <div class="settings-divider"></div>
+            <div class="settings-header">
+                <span>Personalization</span>
+            </div>
+
+            <div class="settings-row">
+                <span class="settings-label">About Me</span>
+                <textarea id="prefAboutMe" class="pref-textarea" placeholder="Describe your personality..."
+                    style="min-height: 60px; font-size: 0.8rem;"></textarea>
+            </div>
+
+            <div class="settings-row">
+                <span class="settings-label">Response Style</span>
+                <select id="prefStyle" class="pref-select" style="padding: 5px; font-size: 0.8rem;">
+                    <option value="Straight and direct">Straight and direct</option>
+                    <option value="Gentle and supportive">Gentle and supportive</option>
+                    <option value="Motivational and energetic">Motivational and energetic</option>
+                    <option value="Logical and analytical">Logical and analytical</option>
+                    <option value="Short and concise">Short and concise</option>
+                    <option value="Deep and reflective">Deep and reflective</option>
+                </select>
+            </div>
+
+            <div class="settings-row">
+                <span class="settings-label">Preferred Tone</span>
+                <select id="prefTone" class="pref-select" style="padding: 5px; font-size: 0.8rem;">
+                    <option value="Casual">Casual</option>
+                    <option value="Professional">Professional</option>
+                    <option value="Friendly">Friendly</option>
+                </select>
+            </div>
+
+            <div class="settings-row">
+                <span class="settings-label">Vibe (Theme)</span>
+                <select id="prefTheme" class="pref-select" style="padding: 5px; font-size: 0.8rem;"
+                    onchange="applyThemeToBody(this.value)">
+                    <option value="Ethereal Gold">Ethereal Gold</option>
+                    <option value="Midnight Neon">Midnight Neon</option>
+                    <option value="Calm Forest">Calm Forest</option>
+                    <option value="Ocean Breeze">Ocean Breeze</option>
+                    <option value="Sunset Rose">Sunset Rose</option>
+                </select>
+            </div>
+
+            <button class="pref-button" onclick="savePreferences()"
+                style="padding: 8px; font-size: 0.8rem; margin-top: 5px;">Save Preferences</button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="welcome-container" id="welcomeScreen">
+                <div class="welcome-glass">
+                    <img src="/static/RAE-removebg-preview.png" class="logo-image" alt="EQ Logo">
+                    <div class="welcome-title">Hello, {{ username }}</div>
+                    <div class="welcome-subtitle">I'm EQ, your personal companion. How are you feeling today?</div>
+                    <button class="main-call-btn" id="welcomeInstallBtn"
+                        style="margin-top: 20px; background: var(--primary); color: #000; border: none; padding: 12px 24px; border-radius: 30px; font-weight: bold; cursor: pointer; display: none;">
+                        Download EQ App 📲
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="file-indicator" id="fileIndicator">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                <polyline points="13 2 13 9 20 9"></polyline>
+            </svg>
+            <span id="fileName"></span>
+            <button onclick="clearFile()"
+                style="background:none;border:none;color:inherit;cursor:pointer;">&times;</button>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="input-wrapper">
+                <button class="action-button" id="uploadBtn" title="Upload File">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                </button>
+                <input type="file" id="fileInput" hidden>
+
+                <input type="text" class="chat-input" id="userInput" placeholder="Type a message..." autocomplete="off">
+
+                <button class="send-button" id="sendButton">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    </svg>
+                </button>
+            </div>
+            <!-- Removed Voice Call Wrapper from here -->
+        </div>
+    </div>
+
+
+
+    <!-- Personalization Onboarding -->
+    <div class="onboarding-overlay" id="onboardingOverlay">
+        <div class="onboarding-card">
+            <div class="onboarding-title">Personalize Your EQ Experience</div>
+            <div class="onboarding-subtitle">Tell me a bit about you so I can be the best friend possible.</div>
+
+            <div class="pref-group">
+                <label class="pref-label">How would you describe your personality?</label>
+                <textarea id="onboardingAbout" class="pref-textarea"
+                    placeholder="e.g., calm, intense, playful, logical, emotional, introverted, direct, sensitive, etc."></textarea>
+            </div>
+
+            <div class="pref-group">
+                <label class="pref-label">How do you prefer responses?</label>
+                <select id="onboardingStyle" class="pref-select">
+                    <option value="Straight and direct">Straight and direct</option>
+                    <option value="Gentle and supportive">Gentle and supportive</option>
+                    <option value="Motivational and energetic">Motivational and energetic</option>
+                    <option value="Logical and analytical">Logical and analytical</option>
+                    <option value="Short and concise">Short and concise</option>
+                    <option value="Deep and reflective">Deep and reflective</option>
+                </select>
+            </div>
+
+            <div class="pref-group">
+                <label class="pref-label">What tone do you prefer?</label>
+                <select id="onboardingTone" class="pref-select">
+                    <option value="Casual">Casual tone</option>
+                    <option value="Friendly" selected>Friendly tone</option>
+                    <option value="Professional">Professional tone</option>
+                </select>
+            </div>
+
+            <div class="pref-group">
+                <label class="pref-label">Pick your vibe (Theme)</label>
+                <select id="onboardingTheme" class="pref-select" onchange="applyThemeToBody(this.value)">
+                    <option value="Ethereal Gold">Ethereal Gold (Classic)</option>
+                    <option value="Midnight Neon">Midnight Neon (Vibrant)</option>
+                    <option value="Calm Forest">Calm Forest (Organic)</option>
+                    <option value="Ocean Breeze">Ocean Breeze (Serene)</option>
+                    <option value="Sunset Rose">Sunset Rose (Warm)</option>
+                </select>
+            </div>
+
+            <button class="pref-button" onclick="submitOnboarding()">Start My Experience</button>
+        </div>
+    </div>
+
+    <script>
+        // Pass server-side variables to static JS
+        window.EQ_USER = {
+            username: "{{ username }}",
+            email: "{{ email }}"
+        };
+    </script>
+    <script src="/static/translations.js"></script>
+    <script src="/static/eq_app_logic.js"></script>
+</body>
+
+</html>
