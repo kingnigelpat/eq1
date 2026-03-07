@@ -226,7 +226,29 @@
     </div>
 
     <script type="module">
-        import { auth, createUserWithEmailAndPassword } from "/static/firebase_init.js";
+        import { auth, createUserWithEmailAndPassword, onAuthStateChanged } from "/static/firebase_init.js";
+
+        // Auto-login if Firebase session exists
+        let autoLoginAttempted = false;
+        onAuthStateChanged(auth, async (user) => {
+            if (user && !autoLoginAttempted) {
+                autoLoginAttempted = true;
+                try {
+                    const idToken = await user.getIdToken();
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ idToken: idToken })
+                    });
+                    const result = await response.json();
+                    if (response.ok && result.success) {
+                        window.location.href = result.redirect;
+                    }
+                } catch (error) {
+                    console.error("Auto-login failed:", error);
+                }
+            }
+        });
 
         const signupForm = document.getElementById('signupForm');
         const submitBtn = document.getElementById('submitBtn');

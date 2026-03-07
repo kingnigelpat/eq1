@@ -76,9 +76,23 @@
             <div class="header-actions">
                 <button class="settings-toggle-btn" onclick="toggleVoiceSettings()" title="Settings">⚙️</button>
                 <a href="#" class="logout-link" onclick="sendFeedback(); return false;">Feedback</a>
-                <a href="/logout" class="logout-link" onclick="localStorage.removeItem('eq_user_id');">Logout</a>
+                <a href="/logout" class="logout-link" id="logoutBtn">Logout</a>
             </div>
         </header>
+
+        <script type="module">
+            import { auth } from "/static/firebase_init.js";
+            document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+                e.preventDefault();
+                localStorage.removeItem('eq_user_id');
+                try {
+                    await auth.signOut();
+                } catch (err) {
+                    console.error("Firebase sign out error:", err);
+                }
+                window.location.href = "/logout";
+            });
+        </script>
 
         <div class="voice-settings-panel" id="voiceSettingsPanel">
             <div class="settings-header">

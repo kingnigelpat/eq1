@@ -554,6 +554,8 @@ def service_worker():
 
 @app.route('/welcome')
 def welcome():
+    if current_user.is_authenticated:
+        return redirect(url_for('chat_app'))
     return render_template('welcome.html')
 
 @app.route('/resolve-email', methods=['POST'])
@@ -571,6 +573,8 @@ def resolve_email():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
+        if current_user.is_authenticated:
+            return redirect(url_for('chat_app'))
         return render_template('login.html')
         
     if not db_fs: return jsonify({"success": False, "message": "Backend offline"}), 500
@@ -601,7 +605,7 @@ def login():
             db_fs.collection('users').document(uid).set(user_data)
             user = User(uid, username, decoded_token.get('email'), user_data)
             
-        login_user(user)
+        login_user(user, remember=True)
         
         # Determine proper redirect
         if user.username.lower() == 'kingnigel' or user.email.lower() == 'patricknigel33@gmail.com':
@@ -617,6 +621,8 @@ def login():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'GET':
+        if current_user.is_authenticated:
+            return redirect(url_for('chat_app'))
         return render_template('signup.html')
         
     if not db_fs: return jsonify({"success": False, "message": "Backend offline"}), 500
@@ -649,7 +655,7 @@ def signup():
         db_fs.collection('users').document(uid).set(user_data)
         
         user = User(uid, username, email, user_data)
-        login_user(user)
+        login_user(user, remember=True)
         return jsonify({"success": True, "redirect": url_for('chat_app')})
     except Exception as e:
         print(f"Signup Error: {e}")
