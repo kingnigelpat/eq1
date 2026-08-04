@@ -1,12 +1,15 @@
 import random
 import os
+import json
+import base64
+from io import BytesIO
 from werkzeug.utils import secure_filename
 from pypdf import PdfReader
 from flask import Flask, request, jsonify, redirect, url_for, render_template, send_from_directory
 from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import requests
-import json
+import json as json_stdlib
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -16,11 +19,26 @@ from firebase_admin import credentials, auth as firebase_auth, firestore
 app = Flask(__name__)
 
 # Initialize Firebase Admin
+db_fs = None
 try:
-    cred = credentials.Certificate('service account key.json')
-    firebase_admin.initialize_app(cred)
-    db_fs = firestore.client() # Firestore client
-    print("Firebase Admin & Firestore Initialized Successfully")
+    cred = None
+    service_account_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
+    if service_account_json:
+        try:
+            cred = credentials.Certificate(json_stdlib.loads(service_account_json))
+        except Exception:
+            try:
+                cred = credentials.Certificate(json_stdlib.loads(base64.b64decode(service_account_json)))
+            except Exception:
+                pass
+    if not cred and os.path.exists('service account key.json'):
+        cred = credentials.Certificate('service account key.json')
+    if cred:
+        firebase_admin.initialize_app(cred)
+        db_fs = firestore.client()
+        print("Firebase Admin & Firestore Initialized Successfully")
+    else:
+        print("Warning: No Firebase credentials found. Set FIREBASE_SERVICE_ACCOUNT env var or place service account key.json in the working directory.")
 except Exception as e:
     print(f"Warning: Firebase Admin failed to initialize: {e}")
     db_fs = None
@@ -31,7 +49,7 @@ CORS(app)  # Enable CORS
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'signup'
+login_manager.login_view = 'login'
 
 class User(UserMixin):
     def __init__(self, uid, username, email, data=None):

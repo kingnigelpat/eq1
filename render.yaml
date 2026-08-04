@@ -8,4 +8,10 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: OPENROUTER_API_KEY
-        sync: false # Set this in the Render dashboard for security
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
+        description: "Base64-encoded or raw JSON of your Firebase service account key"
+      - key: SECRET_KEY
+        sync: false
+        description: "Flask secret key for session management"

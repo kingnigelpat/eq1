@@ -8,13 +8,13 @@
     "theme_color": "#E6BE8A",
     "icons": [
         {
-            "src": "/static/RAE-removebg-preview.png",
+            "src": "/static/Rae-logo.png",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any maskable"
         },
         {
-            "src": "/static/RAE-removebg-preview.png",
+            "src": "/static/Rae-logo.png",
             "sizes": "512x512",
             "type": "image/png"
         }

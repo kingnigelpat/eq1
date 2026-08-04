@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EQ - Your Emotional Companion</title>
-    <link rel="icon" href="/static/RAE-removebg-preview.png" type="image/png">
+    <link rel="icon" href="/static/Rae-logo.png" type="image/png">
     <link rel="stylesheet" href="/static/eq_style.css">
     <link rel="manifest" href="/static/manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -61,20 +61,9 @@
     </script>
     <style>
         @keyframes pulse-gold {
-            0% {
-                transform: scale(1);
-                text-shadow: 0 0 5px #ffcc00;
-            }
-
-            50% {
-                transform: scale(1.1);
-                text-shadow: 0 0 20px #ffcc00;
-            }
-
-            100% {
-                transform: scale(1);
-                text-shadow: 0 0 5px #ffcc00;
-            }
+            0% { transform: scale(1); text-shadow: 0 0 5px #ffcc00; }
+            50% { transform: scale(1.1); text-shadow: 0 0 20px #ffcc00; }
+            100% { transform: scale(1); text-shadow: 0 0 5px #ffcc00; }
         }
 
         .install-ready {
@@ -82,8 +71,7 @@
             color: #ffcc00 !important;
         }
 
-        html,
-        body {
+        html, body {
             height: auto !important;
             overflow-y: auto !important;
             display: block !important;
@@ -124,8 +112,9 @@
         }
 
         .nav-logo img {
-            height: 40px;
+            height: 48px;
             width: auto;
+            border-radius: 12px;
         }
 
         .nav-links {
@@ -147,11 +136,12 @@
         }
 
         .hero {
-            padding: 100px 0;
+            padding: 80px 0 120px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 4rem;
+            min-height: 85vh;
         }
 
         .hero-content {
@@ -189,6 +179,13 @@
             line-height: 1.6;
         }
 
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
         .hero-visual {
             flex: 1;
             display: flex;
@@ -209,25 +206,37 @@
         }
 
         @keyframes orbFloat {
-            0% {
-                transform: scale(1) translate(0, 0);
-            }
+            0% { transform: scale(1) translate(0, 0); }
+            100% { transform: scale(1.2) translate(5%, 5%); }
+        }
 
-            100% {
-                transform: scale(1.2) translate(5%, 5%);
-            }
+        .hero-img-wrapper {
+            position: absolute;
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(230, 190, 138, 0.15), transparent 70%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: orbFloat 8s ease-in-out infinite alternate;
         }
 
         .hero-img {
-            position: absolute;
-            width: 250px;
+            width: 220px;
             height: auto;
-            filter: drop-shadow(0 0 30px var(--primary-glow));
+            filter: drop-shadow(0 0 40px var(--primary-glow));
             animation: float 4s ease-in-out infinite;
+            border-radius: 50%;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
 
         .features {
-            padding: 100px 0;
+            padding: 80px 0;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 2rem;
@@ -245,6 +254,11 @@
         .feature-box:hover {
             transform: translateY(-10px);
             border-color: var(--primary);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
         }
 
         .feature-box h3 {
@@ -300,6 +314,23 @@
             transform: translateY(-1px);
         }
 
+        .cta-btn-outline {
+            display: inline-block;
+            padding: 16px 40px;
+            background: transparent;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 700;
+            border-radius: 40px;
+            border: 2px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .cta-btn-outline:hover {
+            background: rgba(230, 190, 138, 0.1);
+            transform: scale(1.05);
+        }
+
         @media (max-width: 900px) {
             .hero {
                 flex-direction: column;
@@ -319,19 +350,21 @@
 
             .hero-visual {
                 order: -1;
-                /* Show image above text on mobile */
                 margin-bottom: 2rem;
             }
 
             .hero-img {
                 width: 150px;
                 position: relative;
-                /* Remove absolute for column flow */
+            }
+
+            .hero-img-wrapper {
+                width: 200px;
+                height: 200px;
             }
 
             .floating-orb {
                 display: none;
-                /* Hide background orb to focus on logo */
             }
 
             .hero-content {
@@ -341,12 +374,15 @@
             nav {
                 height: 70px;
             }
+
+            .hero-actions {
+                justify-content: center;
+            }
         }
 
         @media (max-width: 600px) {
             .nav-links a:first-child {
                 display: none;
-                /* Hide 'Login' text to save space, button remains */
             }
 
             .hero h1 {
@@ -362,7 +398,7 @@
                 padding: 1.5rem;
             }
 
-            .cta-btn {
+            .cta-btn, .cta-btn-outline {
                 width: 100%;
                 text-align: center;
                 padding: 14px 20px;
@@ -378,7 +414,7 @@
     <div class="landing-container">
         <nav>
             <a href="/" class="nav-logo">
-                <img src="/static/RAE-removebg-preview.png" alt="RAE">
+                <img src="/static/Rae-logo.png" alt="RAE">
                 <span id="logoInstall" style="cursor: pointer;">EQ</span>
             </a>
             <div class="nav-links">
@@ -390,32 +426,40 @@
         <section class="hero">
             <div class="hero-content">
                 <div class="hero-tagline">By Rae Hub Tech Company</div>
-                <h1>More than an AI. A companion.</h1>
+                <h1>More than an AI.<br>A companion.</h1>
                 <p>
                     EQ is your private emotional space. Connect with an AI that listens, remembers,
                     and truly understands you. Whether you need to vent, celebrate, or just talk,
                     EQ is always here.
                 </p>
-                <a href="/signup" class="cta-btn">Start Talking to EQ</a>
+                <div class="hero-actions">
+                    <a href="/signup" class="cta-btn">Start Talking to EQ</a>
+                    <a href="/login" class="cta-btn-outline">Sign In</a>
+                </div>
             </div>
             <div class="hero-visual">
                 <div class="floating-orb"></div>
-                <img src="/static/RAE-removebg-preview.png" alt="EQ Logo" class="hero-img">
+                <div class="hero-img-wrapper">
+                    <img src="/static/Rae-logo.png" alt="EQ Logo" class="hero-img">
+                </div>
             </div>
         </section>
 
         <section class="features">
             <div class="feature-box">
+                <div class="feature-icon">💬</div>
                 <h3>True Empathy</h3>
                 <p>EQ doesn't just process text. It mirrors your vibe. Whether you're hyped or having a rough day, EQ
                     meets you where you are.</p>
             </div>
             <div class="feature-box">
+                <div class="feature-icon">🌙</div>
                 <h3>24/7 Support</h3>
                 <p>No schedules, no judgment. EQ is always in your pocket, ready to listen and support you whenever you
                     need it, day or night.</p>
             </div>
             <div class="feature-box">
+                <div class="feature-icon">🔒</div>
                 <h3>Private & Secure</h3>
                 <p>Your conversations are for your eyes only. We believe your emotional space should be the safest place
                     on the internet.</p>
@@ -431,7 +475,6 @@
     <script type="module">
         import { auth, onAuthStateChanged } from "/static/firebase_init.js";
 
-        // Auto-login if Firebase session exists
         let autoLoginAttempted = false;
         onAuthStateChanged(auth, async (user) => {
             if (user && !autoLoginAttempted) {

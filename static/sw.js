@@ -6,7 +6,7 @@ const STATIC_ASSETS = [
     '/login',
     '/signup',
     '/static/eq_style.css',
-    '/static/RAE-removebg-preview.png',
+    '/static/Rae-logo.png',
     'https://cdn.jsdelivr.net/npm/sweetalert2@11'
 ];
 
