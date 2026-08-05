@@ -24,6 +24,55 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
+        /* Splash / Loader */
+        .eq-loader {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 9999;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+        .eq-loader.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .eq-loader img {
+            width: 120px;
+            height: auto;
+            animation: loaderPulse 1.8s ease-in-out infinite;
+            filter: drop-shadow(0 0 25px rgba(212, 175, 55, 0.4));
+        }
+        .eq-loader .loader-bar {
+            width: 120px;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            margin-top: 24px;
+            overflow: hidden;
+        }
+        .eq-loader .loader-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #D4AF37, #E6BE8A);
+            border-radius: 3px;
+            animation: loaderFill 1.8s ease-in-out forwards;
+        }
+        @keyframes loaderPulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.08); opacity: 1; }
+        }
+        @keyframes loaderFill {
+            0% { width: 0%; }
+            60% { width: 70%; }
+            100% { width: 100%; }
+        }
+
         @keyframes pulse-gold {
             0% {
                 transform: scale(1);
@@ -48,16 +97,19 @@
         }
 
         /* RTL Overrides for International Support */
-        [dir="rtl"] .user-message {
-            border-bottom-right-radius: 18px;
-            border-bottom-left-radius: 4px;
-            padding-right: 16px;
-            padding-left: 35px;
+        [dir="rtl"] .chat-input-area {
+            flex-direction: row-reverse;
         }
 
-        [dir="rtl"] .eq-message {
-            border-bottom-left-radius: 18px;
-            border-bottom-right-radius: 4px;
+        [dir="rtl"] .message-content {
+            text-align: right;
+        }
+
+        [dir="rtl"] .edit-btn {
+            border-top-left-radius: 4px;
+            border-bottom-left-radius: 4px;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
         }
 
         [dir="rtl"] .edit-btn {
@@ -68,6 +120,12 @@
 </head>
 
 <body>
+    <!-- EQ Splash Loader -->
+    <div class="eq-loader" id="eqLoader">
+        <img src="/static/Eq-logo.png" alt="EQ">
+        <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+    </div>
+
     <div class="bg-animation"></div>
     <div class="bg-overlay"></div>
     <div class="chat-container">
@@ -165,7 +223,7 @@
         <div class="chat-messages" id="chat-messages">
             <div class="welcome-container" id="welcomeScreen">
                 <div class="welcome-glass">
-                    <img src="/static/Rae-logo.png" class="logo-image" alt="EQ Logo">
+                    <img src="/static/Eq-logo.png" class="logo-image" alt="EQ Logo">
                     <div class="welcome-title">Hello, {{ username }}</div>
                     <div class="welcome-subtitle">I'm EQ, your personal companion. How are you feeling today?</div>
                     <button class="main-call-btn" id="welcomeInstallBtn"
@@ -268,6 +326,15 @@
     </script>
     <script src="/static/translations.js"></script>
     <script src="/static/eq_app_logic.js"></script>
+    <script>
+        // Dismiss the EQ loader after page is ready
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const loader = document.getElementById('eqLoader');
+                if (loader) loader.classList.add('hidden');
+            }, 2000);
+        });
+    </script>
 </body>
 
 </html>

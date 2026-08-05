@@ -13,6 +13,9 @@ import json as json_stdlib
 import re
 from datetime import datetime, timedelta, timezone
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import firebase_admin
 from firebase_admin import credentials, auth as firebase_auth, firestore
 
@@ -162,9 +165,6 @@ def get_memories(user_identifier):
     return [d.to_dict()['content'] for d in docs]
 
 # --- AI Logic ---
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # Your OpenRouter API key
 API_KEY = os.getenv("OPENROUTER_API_KEY")
