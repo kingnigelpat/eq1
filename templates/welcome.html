@@ -235,6 +235,28 @@
             50% { transform: translateY(-10px); }
         }
 
+        .waitlist-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            background: linear-gradient(90deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.05));
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 20px;
+            padding: 1.5rem 2rem;
+            margin: -40px 0 40px;
+        }
+
+        .waitlist-banner strong {
+            color: var(--primary);
+        }
+
+        .waitlist-banner span {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95rem;
+        }
+
         .features {
             padding: 80px 0;
             display: grid;
@@ -348,6 +370,13 @@
                 padding: 40px 0;
             }
 
+            .waitlist-banner {
+                margin: -20px 0 20px;
+                padding: 1.2rem 1.4rem;
+                text-align: center;
+                justify-content: center;
+            }
+
             .hero-visual {
                 order: -1;
                 margin-bottom: 2rem;
@@ -418,23 +447,20 @@
                 <span id="logoInstall" style="cursor: pointer;">EQ</span>
             </a>
             <div class="nav-links">
-                <a href="/login">Login</a>
-                <a href="/signup" class="cta-btn-nav">Get Started</a>
+                <a href="/app" class="cta-btn-nav">Chat with EQ 💬</a>
             </div>
         </nav>
 
         <section class="hero">
             <div class="hero-content">
-                <div class="hero-tagline">By Rae Hub Tech Company</div>
-                <h1>More than an AI.<br>A companion.</h1>
+                <div class="hero-tagline">🚀 Waitlist Product — By Rae Hub Tech Company</div>
+                <h1>EQ is launching soon.<br>Chat with it today.</h1>
                 <p>
-                    EQ is your private emotional space. Connect with an AI that listens, remembers,
-                    and truly understands you. Whether you need to vent, celebrate, or just talk,
-                    EQ is always here.
+                    EQ is currently a waitlist product — but you don't have to wait. Chat with EQ
+                    right now, for free, no account needed. Be first in line when we fully launch.
                 </p>
                 <div class="hero-actions">
-                    <a href="/signup" class="cta-btn">Start Talking to EQ</a>
-                    <a href="/login" class="cta-btn-outline">Sign In</a>
+                    <a href="/app" class="cta-btn">Chat with EQ — No Sign-Up</a>
                 </div>
             </div>
             <div class="hero-visual">
@@ -443,6 +469,14 @@
                     <img src="/static/Rae-logo.png" alt="EQ Logo" class="hero-img">
                 </div>
             </div>
+        </section>
+
+        <section class="waitlist-banner">
+            <div>
+                <strong>🚀 EQ is a waitlist product.</strong>
+                <span>You're getting early access to chat right now — for free, no account needed. We'll keep you in the loop for the full launch.</span>
+            </div>
+            <a href="/app" class="cta-btn-nav">Join the waitlist →</a>
         </section>
 
         <section class="features">
@@ -472,30 +506,6 @@
         </footer>
     </div>
 
-    <script type="module">
-        import { auth, onAuthStateChanged } from "/static/firebase_init.js";
-
-        let autoLoginAttempted = false;
-        onAuthStateChanged(auth, async (user) => {
-            if (user && !autoLoginAttempted) {
-                autoLoginAttempted = true;
-                try {
-                    const idToken = await user.getIdToken();
-                    const response = await fetch('/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ idToken: idToken })
-                    });
-                    const result = await response.json();
-                    if (response.ok && result.success) {
-                        window.location.href = result.redirect;
-                    }
-                } catch (error) {
-                    console.error("Auto-login failed:", error);
-                }
-            }
-        });
-    </script>
 </body>
 
 </html>

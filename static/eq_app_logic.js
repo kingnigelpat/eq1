@@ -236,18 +236,6 @@ fileInput.addEventListener('change', async (e) => {
 
 window.clearFile = function () { currentFileContent = ""; currentFileName = ""; fileIndicator.classList.remove('active'); };
 
-async function checkPreferences() {
-    try {
-        const res = await fetch('/preferences');
-        const data = await res.json();
-        if (data.personality_description) document.getElementById('prefAboutMe').value = data.personality_description;
-        if (data.response_style) document.getElementById('prefStyle').value = data.response_style;
-        if (data.tone) document.getElementById('prefTone').value = data.tone;
-        if (data.theme) { document.getElementById('prefTheme').value = data.theme; applyThemeToBody(data.theme); }
-        if (!data.personality_description) document.getElementById('onboardingOverlay').classList.add('active');
-    } catch (err) { console.error("Failed to load preferences:", err); }
-}
-
 window.applyThemeToBody = function (theme) {
     document.body.classList.remove('theme-midnight-neon', 'theme-calm-forest', 'theme-ocean-breeze', 'theme-sunset-rose');
     if (theme === 'Midnight Neon') document.body.classList.add('theme-midnight-neon');
@@ -256,37 +244,9 @@ window.applyThemeToBody = function (theme) {
     else if (theme === 'Sunset Rose') document.body.classList.add('theme-sunset-rose');
 };
 
-async function submitOnboarding() {
-    const personality = document.getElementById('onboardingAbout').value.trim();
-    if (!personality) return;
-    const prefs = {
-        personality_description: personality,
-        response_style: document.getElementById('onboardingStyle').value,
-        tone: document.getElementById('onboardingTone').value,
-        theme: document.getElementById('onboardingTheme').value
-    };
-    const success = await updatePreferences(prefs);
-    if (success) {
-        document.getElementById('onboardingOverlay').classList.remove('active');
-        checkPreferences(); // Sync
-    }
-}
-window.submitOnboarding = submitOnboarding;
-
-async function updatePreferences(prefs) {
-    try {
-        const res = await fetch('/preferences', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(prefs)
-        });
-        return (await res.json()).success;
-    } catch (err) { return false; }
-}
-
 window.addEventListener('load', () => {
     updateUIText();
-    checkPreferences();
+    applyThemeToBody('Ethereal Gold');
 });
 
 // PWA Install

@@ -422,10 +422,9 @@ def ping():
     return jsonify({"status": "online", "message": "EQ is breathing!"})
 
 @app.route('/app')
-@login_required 
 def chat_app():
-    # Variables are passed to render_template
-    return render_template('index.html', username=current_user.username, email=current_user.email)
+    # Guest access — no login required (waitlist product)
+    return render_template('index.html', username='Guest', email='')
 
 @app.route('/')
 def index():

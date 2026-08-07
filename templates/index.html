@@ -96,6 +96,20 @@
             filter: drop-shadow(0 0 8px var(--primary));
         }
 
+        .waitlist-strip {
+            flex-shrink: 0;
+            text-align: center;
+            background: linear-gradient(90deg, rgba(212, 175, 55, 0.22), rgba(212, 175, 55, 0.05), rgba(212, 175, 55, 0.22));
+            border-bottom: 1px solid rgba(212, 175, 55, 0.4);
+            color: rgba(255, 255, 255, 0.92);
+            font-size: 0.82rem;
+            padding: 8px 12px;
+        }
+
+        .waitlist-strip strong {
+            color: var(--primary);
+        }
+
         /* RTL Overrides for International Support */
         [dir="rtl"] .chat-input-area {
             flex-direction: row-reverse;
@@ -129,28 +143,16 @@
     <div class="bg-animation"></div>
     <div class="bg-overlay"></div>
     <div class="chat-container">
+        <div class="waitlist-strip">
+            🚀 <strong>EQ is a waitlist product</strong> — you're using early access. Chat is free and no account is needed.
+        </div>
         <header class="chat-header">
             <span class="logo-text" id="logoInstall" title="Download EQ App" style="cursor: pointer;">EQ</span>
             <div class="header-actions">
                 <button class="settings-toggle-btn" onclick="toggleVoiceSettings()" title="Settings">⚙️</button>
                 <a href="#" class="logout-link" onclick="sendFeedback(); return false;">Feedback</a>
-                <a href="/logout" class="logout-link" id="logoutBtn">Logout</a>
             </div>
         </header>
-
-        <script type="module">
-            import { auth } from "/static/firebase_init.js";
-            document.getElementById('logoutBtn').addEventListener('click', async (e) => {
-                e.preventDefault();
-                localStorage.removeItem('eq_user_id');
-                try {
-                    await auth.signOut();
-                } catch (err) {
-                    console.error("Firebase sign out error:", err);
-                }
-                window.location.href = "/logout";
-            });
-        </script>
 
         <div class="voice-settings-panel" id="voiceSettingsPanel">
             <div class="settings-header">
@@ -171,53 +173,6 @@
                     <option value="ar">العربية</option>
                 </select>
             </div>
-
-            <div class="settings-divider"></div>
-            <div class="settings-header">
-                <span>Personalization</span>
-            </div>
-
-            <div class="settings-row">
-                <span class="settings-label">About Me</span>
-                <textarea id="prefAboutMe" class="pref-textarea" placeholder="Describe your personality..."
-                    style="min-height: 60px; font-size: 0.8rem;"></textarea>
-            </div>
-
-            <div class="settings-row">
-                <span class="settings-label">Response Style</span>
-                <select id="prefStyle" class="pref-select" style="padding: 5px; font-size: 0.8rem;">
-                    <option value="Straight and direct">Straight and direct</option>
-                    <option value="Gentle and supportive">Gentle and supportive</option>
-                    <option value="Motivational and energetic">Motivational and energetic</option>
-                    <option value="Logical and analytical">Logical and analytical</option>
-                    <option value="Short and concise">Short and concise</option>
-                    <option value="Deep and reflective">Deep and reflective</option>
-                </select>
-            </div>
-
-            <div class="settings-row">
-                <span class="settings-label">Preferred Tone</span>
-                <select id="prefTone" class="pref-select" style="padding: 5px; font-size: 0.8rem;">
-                    <option value="Casual">Casual</option>
-                    <option value="Professional">Professional</option>
-                    <option value="Friendly">Friendly</option>
-                </select>
-            </div>
-
-            <div class="settings-row">
-                <span class="settings-label">Vibe (Theme)</span>
-                <select id="prefTheme" class="pref-select" style="padding: 5px; font-size: 0.8rem;"
-                    onchange="applyThemeToBody(this.value)">
-                    <option value="Ethereal Gold">Ethereal Gold</option>
-                    <option value="Midnight Neon">Midnight Neon</option>
-                    <option value="Calm Forest">Calm Forest</option>
-                    <option value="Ocean Breeze">Ocean Breeze</option>
-                    <option value="Sunset Rose">Sunset Rose</option>
-                </select>
-            </div>
-
-            <button class="pref-button" onclick="savePreferences()"
-                style="padding: 8px; font-size: 0.8rem; margin-top: 5px;">Save Preferences</button>
         </div>
 
         <div class="chat-messages" id="chat-messages">
@@ -268,54 +223,6 @@
     </div>
 
 
-
-    <!-- Personalization Onboarding -->
-    <div class="onboarding-overlay" id="onboardingOverlay">
-        <div class="onboarding-card">
-            <div class="onboarding-title">Personalize Your EQ Experience</div>
-            <div class="onboarding-subtitle">Tell me a bit about you so I can be the best friend possible.</div>
-
-            <div class="pref-group">
-                <label class="pref-label">How would you describe your personality?</label>
-                <textarea id="onboardingAbout" class="pref-textarea"
-                    placeholder="e.g., calm, intense, playful, logical, emotional, introverted, direct, sensitive, etc."></textarea>
-            </div>
-
-            <div class="pref-group">
-                <label class="pref-label">How do you prefer responses?</label>
-                <select id="onboardingStyle" class="pref-select">
-                    <option value="Straight and direct">Straight and direct</option>
-                    <option value="Gentle and supportive">Gentle and supportive</option>
-                    <option value="Motivational and energetic">Motivational and energetic</option>
-                    <option value="Logical and analytical">Logical and analytical</option>
-                    <option value="Short and concise">Short and concise</option>
-                    <option value="Deep and reflective">Deep and reflective</option>
-                </select>
-            </div>
-
-            <div class="pref-group">
-                <label class="pref-label">What tone do you prefer?</label>
-                <select id="onboardingTone" class="pref-select">
-                    <option value="Casual">Casual tone</option>
-                    <option value="Friendly" selected>Friendly tone</option>
-                    <option value="Professional">Professional tone</option>
-                </select>
-            </div>
-
-            <div class="pref-group">
-                <label class="pref-label">Pick your vibe (Theme)</label>
-                <select id="onboardingTheme" class="pref-select" onchange="applyThemeToBody(this.value)">
-                    <option value="Ethereal Gold">Ethereal Gold (Classic)</option>
-                    <option value="Midnight Neon">Midnight Neon (Vibrant)</option>
-                    <option value="Calm Forest">Calm Forest (Organic)</option>
-                    <option value="Ocean Breeze">Ocean Breeze (Serene)</option>
-                    <option value="Sunset Rose">Sunset Rose (Warm)</option>
-                </select>
-            </div>
-
-            <button class="pref-button" onclick="submitOnboarding()">Start My Experience</button>
-        </div>
-    </div>
 
     <script>
         // Pass server-side variables to static JS
